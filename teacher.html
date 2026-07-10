@@ -710,15 +710,31 @@ function showSettings(){
   var clsRows=myClasses.map(function(c){
     return '<tr><td>'+AW.esc(c.className)+'</td><td><b>'+AW.esc(c.classId)+'</b></td><td>'+AW.esc(c.year||'')+'</td><td>'+(c.semester?'HK'+AW.esc(c.semester):'')+'</td></tr>';
   }).join('');
-  content.innerHTML='<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:18px">'+
+  content.innerHTML='<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
     '<h3 style="margin:0 0 6px">Account</h3>'+
     '<p style="color:var(--aw-ink-2);font-size:.9rem">Name: <b>'+AW.esc(sess.name||'')+'</b><br>Email: <b>'+AW.esc(sess.email||'')+'</b></p>'+
     '</div>'+
-    '<div class="aw-card" style="padding:24px;max-width:600px">'+
+    '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">My Classes</h3>'+
     '<button class="aw-btn aw-btn-primary" style="padding:7px 14px" onclick="showCreateClass()">+ New Class</button></div>'+
     (myClasses.length?'<div class="aw-table-wrap"><table class="aw-table"><thead><tr><th>Class Name</th><th>Class Code</th><th>Year</th><th>Semester</th></tr></thead><tbody>'+clsRows+'</tbody></table></div>':'<p style="color:var(--aw-ink-3)">Chưa có lớp nào.</p>')+
+    '</div>'+
+    '<div class="aw-card" style="padding:24px;max-width:600px">'+
+      '<h3 style="margin:0 0 14px">Change Password</h3>'+
+      '<div class="aw-field"><label class="aw-label">Mật khẩu hiện tại</label><input class="aw-input" id="tpwOld" type="password"></div>'+
+      '<div class="aw-field"><label class="aw-label">Mật khẩu mới</label><input class="aw-input" id="tpwNew" type="password"></div>'+
+      '<div class="aw-field"><label class="aw-label">Xác nhận</label><input class="aw-input" id="tpwNew2" type="password"></div>'+
+      '<button class="aw-btn aw-btn-primary" id="tpwBtn">Update password</button>'+
     '</div>';
+  document.getElementById('tpwBtn').onclick=function(){
+    var o=document.getElementById('tpwOld').value, n=document.getElementById('tpwNew').value, n2=document.getElementById('tpwNew2').value;
+    if(!o||!n){AW.toast('Nhập đầy đủ.','err');return;}
+    if(n!==n2){AW.toast('Mật khẩu mới không khớp.','err');return;}
+    AW.api('auth.changePassword',{email:sess.email,oldPass:o,newPass:n}).then(function(res){
+      if(res&&res.success)AW.toast('Đã đổi mật khẩu','ok');
+      else AW.toast((res&&res.error)||'Thất bại','err');
+    });
+  };
 }
 
 /*═══════════ init ═══════════*/

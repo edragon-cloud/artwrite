@@ -170,12 +170,20 @@ window.retryFromProgress=function(mode,topicId,topic){
 function showSettings(){
   document.getElementById('awPageTitle').textContent='Settings';
   var hasKey=!!AW.geminiKey.get();
-  content.innerHTML='<div class="aw-card" style="padding:24px;max-width:520px">' +
-    '<h3 style="margin:0 0 6px">Gemini API Key</h3>' +
-    '<p style="color:var(--aw-ink-2);font-size:.9rem;margin:0 0 14px">Key được lưu <b>trên máy bạn</b> (localStorage), không gửi lên máy chủ. Dùng để chấm bài bằng AI.</p>' +
-    '<div class="aw-pass-wrap" style="margin-bottom:12px"><input class="aw-input" id="keyIn" type="password" placeholder="'+(hasKey?'•••••••• (đã lưu)':'AIza…')+'"></div>' +
-    '<button class="aw-btn aw-btn-primary" id="keyBtn">Save key</button>' +
-    (hasKey?' <button class="aw-btn aw-btn-ghost" id="keyClear">Remove</button>':'') +
+  content.innerHTML=
+    '<div class="aw-card" style="padding:24px;max-width:520px;margin-bottom:16px">' +
+      '<h3 style="margin:0 0 6px">Gemini API Key</h3>' +
+      '<p style="color:var(--aw-ink-2);font-size:.9rem;margin:0 0 14px">Key lưu trên máy bạn, không gửi lên server. Cần để chấm bài bằng AI.</p>' +
+      '<div class="aw-pass-wrap" style="margin-bottom:12px"><input class="aw-input" id="keyIn" type="password" placeholder="'+(hasKey?'•••••••• (đã lưu)':'AIza…')+'"></div>' +
+      '<button class="aw-btn aw-btn-primary" id="keyBtn">Save key</button>' +
+      (hasKey?' <button class="aw-btn aw-btn-ghost" id="keyClear">Remove</button>':'') +
+    '</div>' +
+    '<div class="aw-card" style="padding:24px;max-width:520px">' +
+      '<h3 style="margin:0 0 14px">Change Password</h3>' +
+      '<div class="aw-field"><label class="aw-label">Mật khẩu hiện tại</label><input class="aw-input" id="pwOld" type="password"></div>' +
+      '<div class="aw-field"><label class="aw-label">Mật khẩu mới</label><input class="aw-input" id="pwNew" type="password"></div>' +
+      '<div class="aw-field"><label class="aw-label">Xác nhận mật khẩu mới</label><input class="aw-input" id="pwNew2" type="password"></div>' +
+      '<button class="aw-btn aw-btn-primary" id="pwBtn">Update password</button>' +
     '</div>';
   document.getElementById('keyBtn').onclick=function(){
     var k=document.getElementById('keyIn').value.trim();
@@ -183,6 +191,15 @@ function showSettings(){
   };
   var clr=document.getElementById('keyClear');
   if(clr)clr.onclick=function(){AW.geminiKey.set('');AW.toast('Đã xoá key','ok');showSettings();};
+  document.getElementById('pwBtn').onclick=function(){
+    var o=document.getElementById('pwOld').value, n=document.getElementById('pwNew').value, n2=document.getElementById('pwNew2').value;
+    if(!o||!n){AW.toast('Nhập đầy đủ.','err');return;}
+    if(n!==n2){AW.toast('Mật khẩu mới không khớp.','err');return;}
+    AW.api('auth.changePassword',{studentId:sess.studentId,oldPass:o,newPass:n}).then(function(res){
+      if(res&&res.success)AW.toast('Đã đổi mật khẩu','ok');
+      else AW.toast((res&&res.error)||'Thất bại','err');
+    });
+  };
 }
 
 showModes();
