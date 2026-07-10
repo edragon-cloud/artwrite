@@ -92,35 +92,115 @@
 
 <script src="aw-common.js"></script>
 <script>
+if (typeof AW === 'undefined') {
+  document.body.innerHTML = '<div style="max-width:560px;margin:80px auto;padding:30px;border:2px solid #EA4335;border-radius:14px;font-family:system-ui;color:#10222E"><h2>&#9888; Kh&ocirc;ng t&#7843;i &#273;&#432;&#7907;c aw-common.js</h2><p>File <b>aw-common.js</b> v&agrave; <b>aw-theme.css</b> ph&#7843;i n&#7857;m <b>c&ugrave;ng th&#432; m&#7909;c</b> v&#7899;i file HTML n&agrave;y tr&ecirc;n GitHub. Upload &#273;&#7911; ch&uacute;ng r&#7891;i t&#7843;i l&#7841;i trang.</p></div>';
+  throw new Error('aw-common.js not loaded');
+}
+
 var sess = AW.session.require('teacher');
 if (!sess) throw 'redirect';
 
+// selected class (persisted per teacher)
+var CLASS_KEY = 'aw_teacher_class';
+var myClasses = [];
+function curClass(){ return localStorage.getItem(CLASS_KEY) || ''; }
+function setCurClass(id){ localStorage.setItem(CLASS_KEY, id); }
+function curClassObj(){ return myClasses.filter(function(c){return c.classId===curClass();})[0]||null; }
+
 var nav = [
-  { id:'overview', label:'Class Overview', icon:'overview', active:true },
-  { id:'live',     label:'Live Observation', icon:'live' },
-  { id:'results',  label:'Results', icon:'results' },
-  { id:'board',    label:'Interactive Board', icon:'modes', href:'board.html' },
-  { id:'library',  label:'Library', icon:'library', href:'library.html' },
-  { id:'settings', label:'Settings', icon:'settings' },
+  { id:'overview',   label:'Class Overview', icon:'overview', active:true },
+  { id:'live',       label:'Live Observation', icon:'live' },
+  { id:'assignments',label:'Assignments', icon:'modes' },
+  { id:'results',    label:'Results', icon:'results' },
+  { id:'board',      label:'Interactive Board', icon:'modes', href:'board.html' },
+  { id:'library',    label:'Library', icon:'library', href:'library.html' },
+  { id:'settings',   label:'Settings', icon:'settings' },
 ];
 
 var content = AW.renderShell({
   mount:'app', nav:nav, eyebrow:'Teacher Dashboard Interface', title:'Class Overview',
   onNav:function(id){
     stopLivePoll();
+    if(!curClass() && id!=='settings'){ AW.toast('Tạo hoặc chọn một lớp trước.','err'); showClasses(); AW.setActiveNav('overview'); return; }
     if(id==='overview') showOverview();
     else if(id==='live') showLive();
+    else if(id==='assignments') showAssignments();
     else if(id==='results') showResults();
     else if(id==='settings') showSettings();
     AW.setActiveNav(id);
   }
 });
 
+// class selector bar injected under topbar
+function injectClassBar(){
+  var old=document.getElementById('classBar'); if(old)old.remove();
+  var bar=document.createElement('div');
+  bar.id='classBar';
+  bar.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 30px;background:var(--aw-surface);border-bottom:1px solid var(--aw-border-2);flex-wrap:wrap';
+  var opts=myClasses.map(function(c){
+    return '<option value="'+AW.esc(c.classId)+'"'+(c.classId===curClass()?' selected':'')+'>'+AW.esc(c.className)+' ('+AW.esc(c.classId)+')</option>';
+  }).join('');
+  bar.innerHTML=
+    '<span style="font-weight:600;font-size:.85rem;color:var(--aw-ink-2)">Class:</span>'+
+    '<select class="aw-select" id="classSel"'+(myClasses.length?'':' disabled')+'>'+
+      (myClasses.length?opts:'<option>No classes yet</option>')+'</select>'+
+    (curClassObj()?'<span class="aw-tag aw-tag-type">'+AW.esc(curClassObj().year||'')+(curClassObj().semester?' · HK'+AW.esc(curClassObj().semester):'')+'</span>':'')+
+    '<button class="aw-btn aw-btn-primary" style="margin-left:auto;padding:8px 16px" id="newClassBtn">+ Create New Class</button>';
+  var main=document.querySelector('.aw-main');
+  var topbar=main.querySelector('.aw-topbar');
+  topbar.insertAdjacentElement('afterend', bar);
+  var sel=document.getElementById('classSel');
+  if(sel) sel.onchange=function(){ setCurClass(this.value); location.reload(); };
+  document.getElementById('newClassBtn').onclick=showCreateClass;
+}
+
+/*═══════════ CLASSES ═══════════*/
+function bootClasses(){
+  AW.api('class.list',{teacherEmail:sess.email}).then(function(res){
+    myClasses=(res&&res.data)||[];
+    if(myClasses.length && !curClass()) setCurClass(myClasses[0].classId);
+    injectClassBar();
+    if(!myClasses.length){ showClasses(); }
+    else { routeInitial(); }
+  });
+}
+
+function showClasses(){
+  document.getElementById('awPageTitle').textContent='My Classes';
+  if(!myClasses.length){
+    content.innerHTML='<div class="aw-empty">'+AW.icon('overview')+
+      '<p>Bạn chưa có lớp nào. Tạo lớp đầu tiên để bắt đầu.</p>'+
+      '<button class="aw-btn aw-btn-primary" style="margin-top:14px" onclick="showCreateClass()">+ Create New Class</button></div>';
+    return;
+  }
+  content.innerHTML='<div class="aw-grid">'+myClasses.map(function(c){
+    return '<div class="aw-lib-card" onclick="pickClass(\''+c.classId+'\')">'+
+      '<h3 class="aw-lib-title">'+AW.esc(c.className)+'</h3>'+
+      '<span class="aw-tag aw-tag-type">'+AW.esc(c.classId)+'</span> '+
+      '<span class="aw-tag aw-tag-medium">'+AW.esc(c.year||'')+(c.semester?' · HK'+AW.esc(c.semester):'')+'</span>'+
+      '<p class="aw-lib-desc">Mã lớp chia sẻ cho sinh viên: <b>'+AW.esc(c.classId)+'</b></p></div>';
+  }).join('')+'</div>';
+}
+window.pickClass=function(id){ setCurClass(id); location.reload(); };
+
+window.showCreateClass=function(){
+  var name=prompt('Tên lớp (VD: IELTS Writing 01):'); if(!name)return;
+  var year=prompt('Năm học (VD: 2026-2027):','2026-2027')||'';
+  var sem=prompt('Học kỳ (1, 2 hoặc 3):','2')||'';
+  AW.api('class.create',{className:name,year:year,semester:sem,teacherEmail:sess.email}).then(function(res){
+    if(res&&res.success){
+      AW.toast('Đã tạo lớp · Mã: '+res.data.classId,'ok',4000);
+      setCurClass(res.data.classId);
+      setTimeout(function(){location.reload();},800);
+    } else AW.toast((res&&res.error)||'Tạo lớp thất bại','err');
+  });
+};
+
 /*═══════════ OVERVIEW ═══════════*/
 function showOverview(){
   document.getElementById('awPageTitle').textContent='Class Overview';
   content.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
-  AW.api('teacher.getOverview',{class:sess.class}).then(function(res){
+  AW.api('teacher.getOverview',{class:curClass()}).then(function(res){
     var d=(res&&res.data)||{avgScore:0,totalEssays:0,activeStudents:0,feedbackPending:0};
     content.innerHTML=
       '<div class="aw-kpi-row">' +
@@ -132,8 +212,9 @@ function showOverview(){
       '<div class="aw-two-col">' +
         '<div class="aw-panel"><h3 style="margin:0 0 14px">Recent Submissions</h3><div id="recent"></div></div>' +
         '<div class="aw-panel"><h3 style="margin:0 0 14px">Quick Actions</h3>' +
-          '<button class="aw-btn aw-btn-primary aw-btn-block" style="margin-bottom:10px" onclick="newAssignment()">+ New Assignment</button>' +
-          '<button class="aw-btn aw-btn-ghost aw-btn-block" onclick="document.querySelector(\'[data-nav=live]\').click()">Go to Live Observation</button>' +
+          '<button class="aw-btn aw-btn-primary aw-btn-block" style="margin-bottom:10px" onclick="document.querySelector(\'[data-nav=assignments]\').click()">+ New Assignment</button>' +
+          '<button class="aw-btn aw-btn-ghost aw-btn-block" style="margin-bottom:10px" onclick="document.querySelector(\'[data-nav=live]\').click()">Go to Live Observation</button>' +
+          '<button class="aw-btn aw-btn-ghost aw-btn-block" onclick="showClasses()">Manage Classes</button>' +
         '</div>' +
       '</div>';
     loadRecent();
@@ -141,7 +222,7 @@ function showOverview(){
 }
 function kpi(label,val){return '<div class="aw-kpi"><div class="aw-kpi-label">'+label+'</div><div class="aw-kpi-value">'+val+'</div></div>';}
 function loadRecent(){
-  AW.api('teacher.getResults',{class:sess.class,mode:'homework'}).then(function(res){
+  AW.api('teacher.getResults',{class:curClass(),mode:'homework'}).then(function(res){
     var rows=(res&&res.data)||[];
     var box=document.getElementById('recent');
     if(!box)return;
@@ -169,7 +250,7 @@ function showLive(){
 }
 function stopLivePoll(){ if(livePoll){clearInterval(livePoll);livePoll=null;} }
 function pollLive(){
-  AW.api('teacher.getLive',{class:sess.class}).then(function(res){
+  AW.api('teacher.getLive',{class:curClass()}).then(function(res){
     liveData=(res&&res.data)||[];
     renderLive();
   });
@@ -352,7 +433,7 @@ function showResults(){
 function loadResults(mode){
   var box=document.getElementById('resultsBox');
   box.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
-  AW.api('teacher.getResults',{class:sess.class,mode:mode}).then(function(res){
+  AW.api('teacher.getResults',{class:curClass(),mode:mode}).then(function(res){
     var rows=(res&&res.data)||[];
     if(!rows.length){box.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>No results in this mode yet.</p></div>';return;}
     box.innerHTML='<div class="aw-table-wrap"><table class="aw-table"><thead><tr>'+
@@ -367,33 +448,75 @@ function loadResults(mode){
   });
 }
 
-/*═══════════ NEW ASSIGNMENT ═══════════*/
-window.newAssignment=function(){
+/*═══════════ ASSIGNMENTS ═══════════*/
+function showAssignments(){
+  document.getElementById('awPageTitle').textContent='Assignments';
+  content.innerHTML=
+    '<div style="display:flex;gap:10px;margin-bottom:18px">'+
+      '<button class="aw-btn aw-btn-primary" onclick="newAssignment(\'homework\')">+ New Homework</button>'+
+      '<button class="aw-btn aw-btn-ghost" onclick="newAssignment(\'inclass\')">+ New In-class Task</button>'+
+    '</div>'+
+    '<div id="assignList"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div>';
+  loadAssignmentList();
+}
+function loadAssignmentList(){
+  AW.api('write.getAssignments',{class:curClass()}).then(function(res){
+    var rows=(res&&res.data)||[];
+    var box=document.getElementById('assignList');
+    if(!box)return;
+    if(!rows.length){box.innerHTML='<div class="aw-empty">'+AW.icon('modes')+'<p>Chưa có bài tập nào cho lớp này.</p></div>';return;}
+    box.innerHTML='<div class="aw-table-wrap"><table class="aw-table"><thead><tr>'+
+      '<th>Topic</th><th>Mode</th><th>Required</th><th>Deadline</th></tr></thead><tbody>'+
+      rows.map(function(a){
+        return '<tr><td><b>'+AW.esc(a.topic)+'</b><br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc((a.prompt||'').slice(0,60))+'</span></td>'+
+          '<td><span class="aw-tag aw-tag-type">'+AW.esc(a.mode)+'</span></td>'+
+          '<td>'+(a.requiredAttempts||1)+'</td>'+
+          '<td>'+(a.deadline?AW.esc(a.deadline):'—')+'</td></tr>';
+      }).join('')+'</tbody></table></div>';
+  });
+}
+window.newAssignment=function(mode){
+  mode=mode||'homework';
   var topic=prompt('Tên bài / chủ đề:'); if(!topic)return;
-  var promptText=prompt('Đề bài (prompt):')||'';
-  var mode=prompt('Chế độ (homework hoặc inclass):','homework')||'homework';
-  var req=prompt('Số lần viết bắt buộc:','5')||'1';
+  var promptText=prompt('Đề bài (IELTS Task 2 prompt):')||'';
+  var req=mode==='homework'?(prompt('Số lần viết bắt buộc:','5')||'1'):'1';
+  var dur=mode==='inclass'?(prompt('Thời gian làm bài (phút):','40')||''):'';
+  var deadline=mode==='homework'?(prompt('Deadline (VD: 2027-03-15):','')||''):'';
   AW.api('teacher.createAssignment',{
-    class:sess.class,mode:mode,topic:topic,prompt:promptText,requiredAttempts:parseInt(req,10)
+    class:curClass(),mode:mode,topic:topic,prompt:promptText,
+    requiredAttempts:parseInt(req,10),durationMin:dur?parseInt(dur,10):'',deadline:deadline
   }).then(function(res){
-    if(res&&res.success)AW.toast('Đã tạo bài tập','ok'); else AW.toast('Tạo thất bại','err');
+    if(res&&res.success){AW.toast('Đã tạo & giao bài cho lớp','ok');showAssignments();}
+    else AW.toast('Tạo thất bại','err');
   });
 };
 
 /*═══════════ SETTINGS ═══════════*/
 function showSettings(){
   document.getElementById('awPageTitle').textContent='Settings';
-  content.innerHTML='<div class="aw-card" style="padding:24px;max-width:520px">'+
+  var clsRows=myClasses.map(function(c){
+    return '<tr><td>'+AW.esc(c.className)+'</td><td><b>'+AW.esc(c.classId)+'</b></td><td>'+AW.esc(c.year||'')+'</td><td>'+(c.semester?'HK'+AW.esc(c.semester):'')+'</td></tr>';
+  }).join('');
+  content.innerHTML='<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:18px">'+
     '<h3 style="margin:0 0 6px">Account</h3>'+
-    '<p style="color:var(--aw-ink-2);font-size:.9rem">Name: <b>'+AW.esc(sess.name||'')+'</b><br>Email: <b>'+AW.esc(sess.email||'')+'</b><br>Class: <b>'+AW.esc(sess.class||'')+'</b></p>'+
+    '<p style="color:var(--aw-ink-2);font-size:.9rem">Name: <b>'+AW.esc(sess.name||'')+'</b><br>Email: <b>'+AW.esc(sess.email||'')+'</b></p>'+
+    '</div>'+
+    '<div class="aw-card" style="padding:24px;max-width:600px">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">My Classes</h3>'+
+    '<button class="aw-btn aw-btn-primary" style="padding:7px 14px" onclick="showCreateClass()">+ New Class</button></div>'+
+    (myClasses.length?'<div class="aw-table-wrap"><table class="aw-table"><thead><tr><th>Class Name</th><th>Class Code</th><th>Year</th><th>Semester</th></tr></thead><tbody>'+clsRows+'</tbody></table></div>':'<p style="color:var(--aw-ink-3)">Chưa có lớp nào.</p>')+
     '</div>';
 }
 
-/*═══════════ init (support #hash deep-link) ═══════════*/
-var hash=(location.hash||'').replace('#','');
-if(hash==='live'){showLive();AW.setActiveNav('live');}
-else if(hash==='results'){showResults();AW.setActiveNav('results');}
-else showOverview();
+/*═══════════ init ═══════════*/
+function routeInitial(){
+  var hash=(location.hash||'').replace('#','');
+  if(hash==='live'){showLive();AW.setActiveNav('live');}
+  else if(hash==='results'){showResults();AW.setActiveNav('results');}
+  else if(hash==='assignments'){showAssignments();AW.setActiveNav('assignments');}
+  else showOverview();
+}
+bootClasses();
 </script>
 </body>
 </html>
