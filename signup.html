@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Đăng ký · ArticuWrite</title>
+<link rel="stylesheet" href="aw-theme.css">
+</head>
+<body>
+<div class="aw-auth-wrap">
+  <div class="aw-auth-card">
+    <div class="aw-auth-head">
+      <div style="display:flex;justify-content:center" id="brand"></div>
+      <h1 class="aw-auth-title">Join ArticuWrite</h1>
+      <p class="aw-auth-sub" id="sub">Create your account and start improving your writing.</p>
+    </div>
+
+    <div class="aw-role-switch" id="roleSwitch">
+      <button class="aw-role active" data-role="student">Student</button>
+      <button class="aw-role" data-role="teacher">Teacher</button>
+    </div>
+
+    <form id="form" autocomplete="on">
+      <div class="aw-field">
+        <label class="aw-label">Full name</label>
+        <input class="aw-input" id="name" placeholder="Nguyễn Văn A">
+      </div>
+
+      <!-- student-only: Student ID + Class -->
+      <div class="aw-row" id="studentRow">
+        <div class="aw-field">
+          <label class="aw-label">Student ID</label>
+          <input class="aw-input" id="studentId" placeholder="1234567">
+        </div>
+        <div class="aw-field">
+          <label class="aw-label">Class</label>
+          <input class="aw-input" id="class" placeholder="EFL-Class A">
+        </div>
+      </div>
+
+      <!-- teacher-only: Class (which class they manage) -->
+      <div class="aw-field" id="teacherClassField" style="display:none">
+        <label class="aw-label">Class you teach</label>
+        <input class="aw-input" id="teacherClass" placeholder="EFL-Class A">
+      </div>
+
+      <div class="aw-field">
+        <label class="aw-label">Email address</label>
+        <input class="aw-input" id="email" type="email" placeholder="you@dnpu.edu.vn">
+      </div>
+
+      <div class="aw-row">
+        <div class="aw-field">
+          <label class="aw-label">Birthdate</label>
+          <input class="aw-input" id="birthdate" type="date">
+        </div>
+        <div class="aw-field">
+          <label class="aw-label">Phone</label>
+          <input class="aw-input" id="phone" placeholder="09xx xxx xxx">
+        </div>
+      </div>
+
+      <div class="aw-field">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <label class="aw-label" for="pw">Password</label>
+          <button type="button" class="aw-pass-toggle" id="pwToggle">show</button>
+        </div>
+        <div class="aw-pass-wrap">
+          <input class="aw-input" id="pw" type="password" placeholder="••••••••" autocomplete="new-password">
+        </div>
+      </div>
+
+      <button class="aw-btn aw-btn-primary aw-btn-block" id="submit" type="submit" style="margin-top:6px">Create account</button>
+    </form>
+
+    <p class="aw-auth-alt">
+      Already have an account? <a href="login.html">Log in</a>
+    </p>
+  </div>
+</div>
+
+<style>
+  .aw-role-switch{display:flex;gap:6px;background:var(--aw-surface-2);border:1px solid var(--aw-border);
+    border-radius:var(--aw-r-pill);padding:4px;margin-bottom:22px}
+  .aw-role{flex:1;border:none;background:transparent;padding:9px;border-radius:var(--aw-r-pill);
+    font-family:var(--aw-font-body);font-weight:600;font-size:.9rem;color:var(--aw-ink-2);cursor:pointer;transition:all .15s}
+  .aw-role.active{background:var(--aw-primary);color:#fff;box-shadow:var(--aw-shadow-sm)}
+</style>
+
+<script src="aw-common.js"></script>
+<script>
+  document.getElementById('brand').innerHTML = AW.brandLockup();
+  var role = 'student';
+
+  var studentRow = document.getElementById('studentRow');
+  var teacherClassField = document.getElementById('teacherClassField');
+
+  AW.els('.aw-role').forEach(function(btn){
+    btn.onclick = function(){
+      AW.els('.aw-role').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      role = btn.dataset.role;
+      if (role === 'teacher') {
+        studentRow.style.display = 'none';
+        teacherClassField.style.display = '';
+      } else {
+        studentRow.style.display = '';
+        teacherClassField.style.display = 'none';
+      }
+    };
+  });
+
+  var pw = document.getElementById('pw');
+  document.getElementById('pwToggle').onclick = function(){
+    var showing = pw.type === 'text';
+    pw.type = showing ? 'password' : 'text';
+    this.textContent = showing ? 'show' : 'hide';
+  };
+
+  function val(id){ return document.getElementById(id).value.trim(); }
+
+  var submitBtn = document.getElementById('submit');
+  document.getElementById('form').onsubmit = function(e){
+    e.preventDefault();
+    var name = val('name'), email = val('email'), pass = pw.value, birthdate = val('birthdate'), phone = val('phone');
+    if (!name || !email || !pass) { AW.toast('Nhập tên, email và mật khẩu.', 'err'); return; }
+
+    var action, payload;
+    if (role === 'teacher') {
+      action = 'auth.teacherSignup';
+      payload = { name:name, class:val('teacherClass'), birthdate:birthdate, password:pass, phone:phone, email:email };
+    } else {
+      var sid = val('studentId');
+      if (!sid) { AW.toast('Nhập Student ID.', 'err'); return; }
+      action = 'auth.studentSignup';
+      payload = { studentId:sid, name:name, class:val('class'), birthdate:birthdate, password:pass, phone:phone, email:email };
+    }
+
+    submitBtn.disabled = true;
+    var original = submitBtn.textContent;
+    submitBtn.innerHTML = '<span class="aw-spin"></span>';
+
+    AW.api(action, payload).then(function(res){
+      if (res && res.success) {
+        AW.session.set(Object.assign({ role: role }, res.data));
+        AW.toast('Tạo tài khoản thành công', 'ok');
+        setTimeout(function(){
+          location.href = role === 'teacher' ? AW.TEACHER_HOME : AW.STUDENT_HOME;
+        }, 600);
+      } else {
+        AW.toast((res && res.error) || 'Đăng ký thất bại.', 'err');
+        submitBtn.disabled = false; submitBtn.textContent = original;
+      }
+    }).catch(function(){
+      AW.toast('Không kết nối được máy chủ.', 'err');
+      submitBtn.disabled = false; submitBtn.textContent = original;
+    });
+  };
+</script>
+</body>
+</html>

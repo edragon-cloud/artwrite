@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard · ArticuWrite</title>
+<link rel="stylesheet" href="aw-theme.css">
+<style>
+  .aw-mode-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-bottom:28px}
+  .aw-mode-card{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r-lg);padding:24px;cursor:pointer;transition:transform .14s,box-shadow .16s,border-color .16s;box-shadow:var(--aw-shadow-sm);position:relative;overflow:hidden}
+  .aw-mode-card:hover{transform:translateY(-4px);box-shadow:var(--aw-shadow-lg);border-color:var(--aw-primary)}
+  .aw-mode-ic{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:1.5rem;margin-bottom:14px}
+  .aw-mode-free .aw-mode-ic{background:#E4F5EA}
+  .aw-mode-inclass .aw-mode-ic{background:var(--aw-primary-lt)}
+  .aw-mode-hw .aw-mode-ic{background:#FEF3D6}
+  .aw-mode-card h3{margin:0 0 6px;font-size:1.15rem;font-family:var(--aw-font-display)}
+  .aw-mode-card p{margin:0;color:var(--aw-ink-2);font-size:.9rem;line-height:1.5}
+  .aw-hist-list{display:flex;flex-direction:column;gap:10px}
+  .aw-hist{display:flex;align-items:center;gap:14px;background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:14px 18px;box-shadow:var(--aw-shadow-sm)}
+  .aw-hist-main{flex:1;min-width:0}
+  .aw-hist-topic{font-weight:600;color:var(--aw-ink);margin-bottom:2px}
+  .aw-hist-meta{font-size:.8rem;color:var(--aw-ink-3)}
+  .aw-sec-title{font-family:var(--aw-font-display);font-size:1.25rem;font-weight:600;margin:0 0 16px;color:var(--aw-ink)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script src="aw-common.js"></script>
+<script>
+var sess = AW.session.require('student');
+if (!sess) throw 'redirect';
+
+var nav = [
+  { id:'modes',   label:'Practice Modes', icon:'modes', active:true },
+  { id:'board',   label:'Interactive Board', icon:'modes', href:'board.html' },
+  { id:'library', label:'Library', icon:'library', href:'library.html' },
+  { id:'progress',label:'My Progress', icon:'progress' },
+  { id:'settings',label:'Settings', icon:'settings' },
+];
+
+var content = AW.renderShell({
+  mount:'app', nav:nav, eyebrow:'Student Interface', title:'Practice Modes',
+  onNav: function(id){
+    if(id==='modes') showModes();
+    else if(id==='progress') showProgress();
+    else if(id==='settings') showSettings();
+    AW.setActiveNav(id);
+  }
+});
+
+function showModes(){
+  document.getElementById('awPageTitle').textContent='Practice Modes';
+  content.innerHTML =
+    '<div class="aw-mode-grid">' +
+      modeCard('free','✍️','Free Writing','Choose any topic and get instant AI feedback. Practice at your own pace.','aw-mode-free') +
+      modeCard('inclass','⏱️','In-class Practice','Timed writing assigned by your teacher, with live guidance.','aw-mode-inclass') +
+      modeCard('homework','📝','Homework','Complete assigned essays with the required number of revisions.','aw-mode-hw') +
+    '</div>' +
+    '<h2 class="aw-sec-title">Recent Practice</h2>' +
+    '<div id="hist" class="aw-hist-list"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div>';
+
+  AW.els('.aw-mode-card').forEach(function(c){
+    c.onclick=function(){
+      var m=c.dataset.mode;
+      if(m==='free'){ location.href='write.html?mode=free&topic='+encodeURIComponent('Free Writing'); }
+      else { loadAssignments(m); }
+    };
+  });
+  loadHistory();
+}
+
+function modeCard(mode,ic,title,desc,cls){
+  return '<div class="aw-mode-card '+cls+'" data-mode="'+mode+'">' +
+    '<div class="aw-mode-ic">'+ic+'</div><h3>'+title+'</h3><p>'+desc+'</p></div>';
+}
+
+function loadHistory(){
+  AW.api('write.getHistory',{studentId:sess.studentId}).then(function(res){
+    var box=document.getElementById('hist');
+    if(!res||!res.success||!res.data.length){
+      box.innerHTML='<div class="aw-empty">'+AW.icon('progress')+'<p>No practice yet. Pick a mode above to start.</p></div>';
+      return;
+    }
+    box.innerHTML=res.data.slice(0,8).map(function(h){
+      return '<div class="aw-hist"><div class="aw-hist-main">' +
+        '<div class="aw-hist-topic">'+AW.esc(h.topic||'Untitled')+'</div>' +
+        '<div class="aw-hist-meta">'+AW.esc(h.mode)+' · '+new Date(h.timestamp).toLocaleDateString()+'</div>' +
+        '</div><button class="aw-btn aw-btn-ghost" style="padding:7px 16px" data-tid="'+AW.esc(h.topicId)+'" data-topic="'+AW.esc(h.topic)+'" data-mode="'+AW.esc(h.mode)+'">Re-try</button></div>';
+    }).join('');
+    AW.els('[data-tid]').forEach(function(b){
+      b.onclick=function(){
+        location.href='write.html?mode='+b.dataset.mode+'&retry=1&topicId='+encodeURIComponent(b.dataset.tid)+'&topic='+encodeURIComponent(b.dataset.topic);
+      };
+    });
+  });
+}
+
+function loadAssignments(mode){
+  content.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span><p>Loading assignments…</p></div>';
+  AW.api('write.getAssignments',{class:sess.class,mode:mode}).then(function(res){
+    document.getElementById('awPageTitle').textContent = mode==='homework'?'Homework':'In-class Practice';
+    if(!res||!res.success||!res.data.length){
+      content.innerHTML='<div class="aw-empty">'+AW.icon('modes')+'<p>No '+mode+' assigned yet. Check back later.</p>'+
+        '<button class="aw-btn aw-btn-ghost" style="margin-top:14px" onclick="showModes()">← Back to modes</button></div>';
+      return;
+    }
+    content.innerHTML='<button class="aw-btn aw-btn-ghost" style="margin-bottom:18px" onclick="showModes()">← Back</button>'+
+      '<div class="aw-grid">'+res.data.map(function(a){
+      return '<div class="aw-lib-card" data-a=\''+AW.esc(JSON.stringify(a))+'\'>' +
+        '<h3 class="aw-lib-title">'+AW.esc(a.topic)+'</h3>' +
+        '<span class="aw-tag aw-tag-type">'+AW.esc(a.mode)+'</span> '+
+        (a.requiredAttempts?'<span class="aw-tag aw-tag-medium">'+a.requiredAttempts+' revisions</span>':'')+
+        '<p class="aw-lib-desc">'+AW.esc((a.prompt||'').slice(0,120))+'</p></div>';
+    }).join('')+'</div>';
+    AW.els('[data-a]').forEach(function(c){
+      c.onclick=function(){
+        var a=JSON.parse(c.dataset.a);
+        var p=new URLSearchParams({mode:a.mode,topic:a.topic,prompt:a.prompt,topicId:a.topicId,type:'IELTS Task 2'});
+        if(a.durationMin) p.set('duration',a.durationMin);
+        location.href='write.html?'+p.toString();
+      };
+    });
+  });
+}
+
+function showProgress(){
+  document.getElementById('awPageTitle').textContent='My Progress';
+  content.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
+  AW.api('write.getHistory',{studentId:sess.studentId}).then(function(res){
+    var rows=(res&&res.data)||[];
+    if(!rows.length){content.innerHTML='<div class="aw-empty">'+AW.icon('progress')+'<p>No data yet.</p></div>';return;}
+    content.innerHTML='<div class="aw-table-wrap"><table class="aw-table"><thead><tr>'+
+      '<th>Topic</th><th>Mode</th><th>Date</th><th></th></tr></thead><tbody>'+
+      rows.map(function(h){return '<tr><td>'+AW.esc(h.topic)+'</td><td>'+AW.esc(h.mode)+'</td>'+
+        '<td>'+new Date(h.timestamp).toLocaleDateString()+'</td>'+
+        '<td><button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="location.href=\'write.html?mode='+h.mode+'&retry=1&topicId='+encodeURIComponent(h.topicId)+'&topic='+encodeURIComponent(h.topic)+'\'">Re-try</button></td></tr>';
+      }).join('')+'</tbody></table></div>';
+  });
+}
+
+function showSettings(){
+  document.getElementById('awPageTitle').textContent='Settings';
+  var hasKey=!!AW.geminiKey.get();
+  content.innerHTML='<div class="aw-card" style="padding:24px;max-width:520px">' +
+    '<h3 style="margin:0 0 6px">Gemini API Key</h3>' +
+    '<p style="color:var(--aw-ink-2);font-size:.9rem;margin:0 0 14px">Key được lưu <b>trên máy bạn</b> (localStorage), không gửi lên máy chủ. Dùng để chấm bài bằng AI.</p>' +
+    '<div class="aw-pass-wrap" style="margin-bottom:12px"><input class="aw-input" id="keyIn" type="password" placeholder="'+(hasKey?'•••••••• (đã lưu)':'AIza…')+'"></div>' +
+    '<button class="aw-btn aw-btn-primary" id="keyBtn">Save key</button>' +
+    (hasKey?' <button class="aw-btn aw-btn-ghost" id="keyClear">Remove</button>':'') +
+    '</div>';
+  document.getElementById('keyBtn').onclick=function(){
+    var k=document.getElementById('keyIn').value.trim();
+    if(k){AW.geminiKey.set(k);AW.toast('Đã lưu API key','ok');showSettings();}
+  };
+  var clr=document.getElementById('keyClear');
+  if(clr)clr.onclick=function(){AW.geminiKey.set('');AW.toast('Đã xoá key','ok');showSettings();};
+}
+
+showModes();
+</script>
+</body>
+</html>

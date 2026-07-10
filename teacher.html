@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Teacher · ArticuWrite</title>
+<link rel="stylesheet" href="aw-theme.css">
+<style>
+  /* live observation grid */
+  .aw-live-wrap{display:grid;grid-template-columns:1fr 250px;gap:18px}
+  @media(max-width:900px){.aw-live-wrap{grid-template-columns:1fr}}
+  .aw-live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+  .aw-live-cell{background:var(--aw-surface);border:1.5px solid var(--aw-border-2);border-radius:var(--aw-r);padding:12px 10px;text-align:center;cursor:pointer;transition:transform .12s,border-color .14s,box-shadow .14s}
+  .aw-live-cell:hover{transform:translateY(-2px);border-color:var(--aw-primary);box-shadow:var(--aw-shadow)}
+  .aw-live-cell.sel{border-color:var(--aw-primary);box-shadow:var(--aw-ring)}
+  .aw-live-av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--aw-primary),#0A93BD);color:#fff;display:grid;place-items:center;font-weight:700;font-size:.85rem;margin:0 auto 8px}
+  .aw-live-name{font-size:.8rem;font-weight:600;color:var(--aw-ink);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .aw-live-status{display:inline-flex;align-items:center;gap:5px;font-size:.72rem;color:var(--aw-ink-2)}
+  .aw-live-side{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:16px;box-shadow:var(--aw-shadow-sm);align-self:start}
+  .aw-live-side h4{margin:0 0 12px;font-size:.95rem}
+  .aw-stat-row{display:flex;justify-content:space-between;font-size:.86rem;padding:6px 0;color:var(--aw-ink-2)}
+  .aw-stat-row b{color:var(--aw-ink)}
+  /* annotation modal */
+  .aw-modal-bg{position:fixed;inset:0;background:rgba(16,34,46,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
+  .aw-modal-bg.show{display:flex}
+  .aw-modal{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:100%;max-width:1000px;max-height:90vh;overflow:hidden;display:grid;grid-template-columns:1fr 300px;box-shadow:var(--aw-shadow-lg)}
+  @media(max-width:800px){.aw-modal{grid-template-columns:1fr}}
+  .aw-modal-doc{padding:24px;overflow-y:auto;max-height:90vh}
+  .aw-modal-doc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .aw-doc-text{font-size:1rem;line-height:1.9;color:var(--aw-ink);white-space:pre-wrap;user-select:text;outline:none;min-height:200px;border:1px solid var(--aw-border-2);border-radius:var(--aw-r-sm);padding:16px}
+  .aw-doc-text:focus{border-color:var(--aw-primary)}
+  .aw-sug-del{color:var(--aw-danger);text-decoration:line-through;text-decoration-thickness:2px}
+  .aw-sug-ins{color:var(--aw-writing);font-weight:600}
+  .aw-hl{background:#FFF1A8;border-radius:2px;padding:0 1px}
+  .aw-doc-comment{border-bottom:2px dotted var(--aw-accent);cursor:help}
+  .aw-modal-side{background:var(--aw-surface-2);padding:20px;border-left:1px solid var(--aw-border-2);overflow-y:auto;max-height:90vh}
+  .aw-modal-side h4{margin:0 0 12px;font-size:.95rem}
+  .aw-suggest-list{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+  .aw-suggest{background:#FFF;border:1px solid var(--aw-border);border-radius:var(--aw-r-sm);padding:10px;font-size:.82rem}
+  .aw-suggest .orig{color:var(--aw-danger);text-decoration:line-through}
+  .aw-suggest .sug{color:var(--aw-writing);font-weight:600}
+  .aw-score-input{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .aw-score-input label{width:40px;font-weight:600;font-size:.85rem}
+  .aw-score-input input{width:60px;padding:6px 8px;border:1.5px solid var(--aw-border);border-radius:6px;text-align:center}
+  .aw-sel-pop{position:fixed;z-index:600;background:var(--aw-primary-dk);border-radius:8px;padding:4px;display:none;gap:2px;box-shadow:var(--aw-shadow-lg)}
+  .aw-sel-pop.show{display:flex}
+  .aw-sel-pop button{background:none;border:none;color:#fff;padding:6px 10px;font-size:.8rem;cursor:pointer;border-radius:5px;font-family:var(--aw-font-body)}
+  .aw-sel-pop button:hover{background:rgba(255,255,255,.15)}
+  /* recent activity */
+  .aw-two-col{display:grid;grid-template-columns:1fr 300px;gap:18px}
+  @media(max-width:900px){.aw-two-col{grid-template-columns:1fr}}
+  .aw-panel{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:20px;box-shadow:var(--aw-shadow-sm)}
+  .aw-tabs{display:flex;gap:4px;border-bottom:2px solid var(--aw-border-2);margin-bottom:18px}
+  .aw-tab{padding:10px 18px;border:none;background:none;font-family:var(--aw-font-body);font-weight:600;font-size:.92rem;color:var(--aw-ink-3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px}
+  .aw-tab.active{color:var(--aw-primary);border-bottom-color:var(--aw-primary)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div class="aw-modal-bg" id="modalBg">
+  <div class="aw-modal">
+    <div class="aw-modal-doc">
+      <div class="aw-modal-doc-head">
+        <div><b id="mStudent">Student</b> <span style="color:var(--aw-ink-3)" id="mTopic"></span></div>
+        <button class="aw-btn aw-btn-ghost" style="padding:6px 14px" id="mClose">Close</button>
+      </div>
+      <div class="aw-doc-text" id="mText" contenteditable="false"></div>
+      <p style="font-size:.78rem;color:var(--aw-ink-3);margin:10px 0 0">Bôi đen từ/cụm để chèn gợi ý sửa (gạch đỏ + chữ xanh), highlight, hoặc comment — giống chế độ Suggesting của Google Docs.</p>
+    </div>
+    <div class="aw-modal-side">
+      <h4>Teacher Suggestions</h4>
+      <p style="font-size:.8rem;color:var(--aw-ink-3);margin:0 0 12px">Bôi đen 1 từ/cụm trong bài để đề xuất sửa.</p>
+      <div class="aw-suggest-list" id="suggestList"></div>
+      <h4>Scoring (IELTS)</h4>
+      <div class="aw-score-input"><label>TR</label><input type="number" id="sTR" min="0" max="9" step="0.5"></div>
+      <div class="aw-score-input"><label>CC</label><input type="number" id="sCC" min="0" max="9" step="0.5"></div>
+      <div class="aw-score-input"><label>LR</label><input type="number" id="sLR" min="0" max="9" step="0.5"></div>
+      <div class="aw-score-input"><label>GRA</label><input type="number" id="sGRA" min="0" max="9" step="0.5"></div>
+      <div class="aw-score-input"><label><b>Overall</b></label><input type="number" id="sOverall" min="0" max="9" step="0.5"></div>
+      <button class="aw-btn aw-btn-primary aw-btn-block" id="saveFb" style="margin-top:12px">Submit Feedback</button>
+    </div>
+  </div>
+</div>
+
+<div class="aw-sel-pop" id="selPop">
+  <button id="popSuggest">✎ Suggest</button>
+  <button id="popStrike">S̶ Strike</button>
+  <button id="popHl">🖍 Highlight</button>
+  <button id="popComment">💬 Comment</button>
+</div>
+
+<script src="aw-common.js"></script>
+<script>
+var sess = AW.session.require('teacher');
+if (!sess) throw 'redirect';
+
+var nav = [
+  { id:'overview', label:'Class Overview', icon:'overview', active:true },
+  { id:'live',     label:'Live Observation', icon:'live' },
+  { id:'results',  label:'Results', icon:'results' },
+  { id:'board',    label:'Interactive Board', icon:'modes', href:'board.html' },
+  { id:'library',  label:'Library', icon:'library', href:'library.html' },
+  { id:'settings', label:'Settings', icon:'settings' },
+];
+
+var content = AW.renderShell({
+  mount:'app', nav:nav, eyebrow:'Teacher Dashboard Interface', title:'Class Overview',
+  onNav:function(id){
+    stopLivePoll();
+    if(id==='overview') showOverview();
+    else if(id==='live') showLive();
+    else if(id==='results') showResults();
+    else if(id==='settings') showSettings();
+    AW.setActiveNav(id);
+  }
+});
+
+/*═══════════ OVERVIEW ═══════════*/
+function showOverview(){
+  document.getElementById('awPageTitle').textContent='Class Overview';
+  content.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
+  AW.api('teacher.getOverview',{class:sess.class}).then(function(res){
+    var d=(res&&res.data)||{avgScore:0,totalEssays:0,activeStudents:0,feedbackPending:0};
+    content.innerHTML=
+      '<div class="aw-kpi-row">' +
+        kpi('Average Class Score', d.avgScore||'—') +
+        kpi('Total Essays Submitted', d.totalEssays) +
+        kpi('Active Students', d.activeStudents) +
+        kpi('Feedback Pending', d.feedbackPending) +
+      '</div>' +
+      '<div class="aw-two-col">' +
+        '<div class="aw-panel"><h3 style="margin:0 0 14px">Recent Submissions</h3><div id="recent"></div></div>' +
+        '<div class="aw-panel"><h3 style="margin:0 0 14px">Quick Actions</h3>' +
+          '<button class="aw-btn aw-btn-primary aw-btn-block" style="margin-bottom:10px" onclick="newAssignment()">+ New Assignment</button>' +
+          '<button class="aw-btn aw-btn-ghost aw-btn-block" onclick="document.querySelector(\'[data-nav=live]\').click()">Go to Live Observation</button>' +
+        '</div>' +
+      '</div>';
+    loadRecent();
+  });
+}
+function kpi(label,val){return '<div class="aw-kpi"><div class="aw-kpi-label">'+label+'</div><div class="aw-kpi-value">'+val+'</div></div>';}
+function loadRecent(){
+  AW.api('teacher.getResults',{class:sess.class,mode:'homework'}).then(function(res){
+    var rows=(res&&res.data)||[];
+    var box=document.getElementById('recent');
+    if(!box)return;
+    if(!rows.length){box.innerHTML='<p style="color:var(--aw-ink-3);font-size:.88rem">No submissions yet.</p>';return;}
+    box.innerHTML=rows.slice(-6).reverse().map(function(r){
+      return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--aw-border-2);font-size:.88rem">'+
+        '<span>'+AW.esc(r.name||r.studentId)+' — '+AW.esc(r.topic||'')+'</span>'+
+        '<b class="'+AW.scoreClass(r.aiScore)+'">'+(r.aiScore||'—')+'</b></div>';
+    }).join('');
+  });
+}
+
+/*═══════════ LIVE OBSERVATION ═══════════*/
+var livePoll=null, liveSelected=null, liveData=[];
+function showLive(){
+  document.getElementById('awPageTitle').textContent='Live Observation';
+  content.innerHTML=
+    '<div class="aw-live-wrap">' +
+      '<div><div id="liveGrid" class="aw-live-grid"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div></div>' +
+      '<div class="aw-live-side"><h4>Session Stats</h4><div id="liveStats"></div>' +
+        '<p style="font-size:.78rem;color:var(--aw-ink-3);margin-top:14px">Click a student to open their live essay and add suggestions.</p></div>' +
+    '</div>';
+  pollLive();
+  livePoll=setInterval(pollLive, 6000);
+}
+function stopLivePoll(){ if(livePoll){clearInterval(livePoll);livePoll=null;} }
+function pollLive(){
+  AW.api('teacher.getLive',{class:sess.class}).then(function(res){
+    liveData=(res&&res.data)||[];
+    renderLive();
+  });
+}
+function renderLive(){
+  var grid=document.getElementById('liveGrid'); if(!grid)return;
+  if(!liveData.length){grid.innerHTML='<div class="aw-empty">'+AW.icon('live')+'<p>No active students right now.</p></div>';
+    document.getElementById('liveStats').innerHTML='';return;}
+  var counts={Writing:0,Idle:0,Offline:0,Submitted:0};
+  grid.innerHTML=liveData.map(function(s){
+    counts[s.status]=(counts[s.status]||0)+1;
+    var dot=s.status==='Writing'?'writing':s.status==='Idle'?'idle':s.status==='Submitted'?'submitted':'offline';
+    var init=(s.name||s.studentId).split(/\s+/).map(function(w){return w[0];}).slice(0,2).join('').toUpperCase();
+    return '<div class="aw-live-cell'+(liveSelected===s.studentId?' sel':'')+'" data-sid="'+AW.esc(s.studentId)+'">' +
+      '<div class="aw-live-av">'+AW.esc(init)+'</div>' +
+      '<div class="aw-live-name">'+AW.esc(s.name||s.studentId)+'</div>' +
+      '<div class="aw-live-status"><span class="aw-dot aw-dot-'+dot+'"></span>'+s.status+'</div></div>';
+  }).join('');
+  var totalWords=liveData.reduce(function(a,s){return a+(parseInt(s.wordCount)||0);},0);
+  document.getElementById('liveStats').innerHTML=
+    statRow('Writing',counts.Writing||0)+statRow('Idle',counts.Idle||0)+
+    statRow('Offline',counts.Offline||0)+statRow('Submitted',counts.Submitted||0)+
+    '<hr style="border:none;border-top:1px solid var(--aw-border-2);margin:10px 0">'+
+    statRow('Total words',totalWords);
+  AW.els('.aw-live-cell').forEach(function(c){
+    c.onclick=function(){
+      liveSelected=c.dataset.sid;
+      var s=liveData.filter(function(x){return String(x.studentId)===String(liveSelected);})[0];
+      if(s) openAnnotation(s);
+    };
+  });
+}
+function statRow(l,v){return '<div class="aw-stat-row"><span>'+l+'</span><b>'+v+'</b></div>';}
+
+/*═══════════ ANNOTATION MODAL — Google-Docs-style inline editing ═══════════
+  The doc is contentEditable. Selecting text + choosing a tool wraps the
+  selection in a styled span (strikethrough + green insertion, highlight,
+  or comment). Suggestions are also recorded in a structured list so they
+  can be saved to the backend and reviewed.
+─────────────────────────────────────────────────────────────────*/
+var currentAnnot={ studentId:null, topicId:null, mode:null, suggestions:[] };
+var mText=document.getElementById('mText');
+var selPop=document.getElementById('selPop');
+var savedRange=null;
+
+function openAnnotation(s){
+  currentAnnot={ studentId:s.studentId, topicId:s.topicId, mode:s.mode, suggestions:[] };
+  document.getElementById('mStudent').textContent=s.name||s.studentId;
+  document.getElementById('mTopic').textContent=s.topic?('· '+s.topic):'';
+  // plain text → editable doc
+  mText.textContent=s.snapshot||'(chưa có nội dung)';
+  mText.setAttribute('contenteditable','true');
+  document.getElementById('suggestList').innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">Chưa có đề xuất nào.</p>';
+  ['sTR','sCC','sLR','sGRA','sOverall'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('modalBg').classList.add('show');
+}
+document.getElementById('mClose').onclick=function(){
+  document.getElementById('modalBg').classList.remove('show');liveSelected=null;selPop.classList.remove('show');
+};
+
+// show popup on selection within the doc
+mText.addEventListener('mouseup',function(e){
+  var sel=window.getSelection();
+  var txt=sel.toString().trim();
+  if(txt && sel.rangeCount){
+    savedRange=sel.getRangeAt(0).cloneRange();
+    selPop.style.left=Math.max(8,e.clientX-40)+'px';
+    selPop.style.top=Math.max(8,e.clientY-48)+'px';
+    selPop.classList.add('show');
+  } else {
+    selPop.classList.remove('show');
+  }
+});
+document.addEventListener('mousedown',function(e){
+  if(!selPop.contains(e.target) && e.target!==mText && !mText.contains(e.target)) selPop.classList.remove('show');
+});
+
+function restoreSelection(){
+  if(!savedRange) return null;
+  var sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(savedRange);
+  return savedRange;
+}
+
+// wrap current selection in a span with given class; optionally append inserted text
+function wrapSelection(cls, insertAfterText){
+  var range=restoreSelection(); if(!range) return '';
+  var original=range.toString();
+  var span=document.createElement('span');
+  span.className=cls;
+  try{ range.surroundContents(span); }
+  catch(e){ // selection spans multiple nodes → extract + wrap
+    var frag=range.extractContents(); span.appendChild(frag); range.insertNode(span);
+  }
+  if(insertAfterText){
+    var ins=document.createElement('span');
+    ins.className='aw-sug-ins'; ins.textContent=' '+insertAfterText;
+    span.parentNode.insertBefore(ins, span.nextSibling);
+  }
+  selPop.classList.remove('show');
+  return original;
+}
+
+// Suggest edit: strike original (red) + insert replacement (green)
+document.getElementById('popSuggest').onclick=function(){
+  var orig=savedRange?savedRange.toString():'';
+  var sug=prompt('Đề xuất sửa "'+orig+'" thành:');
+  if(sug){ wrapSelection('aw-sug-del', sug); recordSuggestion(orig,sug,'edit'); }
+  else selPop.classList.remove('show');
+};
+// Strikethrough only (delete suggestion)
+document.getElementById('popStrike').onclick=function(){
+  var orig=wrapSelection('aw-sug-del',''); if(orig)recordSuggestion(orig,'','strike');
+};
+// Highlight
+document.getElementById('popHl').onclick=function(){
+  var orig=wrapSelection('aw-hl',''); if(orig)recordSuggestion(orig,'','highlight');
+};
+// Comment (dotted underline + note)
+document.getElementById('popComment').onclick=function(){
+  var orig=savedRange?savedRange.toString():'';
+  var note=prompt('Bình luận cho "'+orig+'":');
+  if(note){
+    var range=restoreSelection();
+    var span=document.createElement('span');
+    span.className='aw-doc-comment'; span.title=note;
+    try{range.surroundContents(span);}catch(e){var f=range.extractContents();span.appendChild(f);range.insertNode(span);}
+    recordSuggestion(orig,note,'comment');
+  }
+  selPop.classList.remove('show');
+};
+
+function recordSuggestion(orig,sug,type){
+  currentAnnot.suggestions.push({original:orig,suggestion:sug,type:type});
+  renderSuggestions();
+}
+function renderSuggestions(){
+  var box=document.getElementById('suggestList');
+  if(!currentAnnot.suggestions.length){box.innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">Chưa có đề xuất nào.</p>';return;}
+  var labels={edit:'→',strike:'✕ delete',highlight:'🖍',comment:'💬'};
+  box.innerHTML=currentAnnot.suggestions.map(function(s,i){
+    var mid = s.type==='edit' ? ' → <span class="sug">'+AW.esc(s.suggestion)+'</span>'
+            : s.type==='comment' ? ' <i style="color:var(--aw-accent-dk)">💬 '+AW.esc(s.suggestion)+'</i>'
+            : ' <i>'+ (labels[s.type]||'') +'</i>';
+    return '<div class="aw-suggest"><span class="orig">'+AW.esc(s.original)+'</span>'+mid+
+      ' <button onclick="rmSuggest('+i+')" style="float:right;border:none;background:none;color:var(--aw-danger);cursor:pointer">✕</button></div>';
+  }).join('');
+}
+window.rmSuggest=function(i){currentAnnot.suggestions.splice(i,1);renderSuggestions();};
+
+document.getElementById('saveFb').onclick=function(){
+  var overall=document.getElementById('sOverall').value;
+  var btn=this; btn.disabled=true; var orig=btn.textContent; btn.innerHTML='<span class="aw-spin"></span>';
+  AW.api('teacher.saveAnnotation',{
+    studentId:currentAnnot.studentId, topicId:currentAnnot.topicId, mode:currentAnnot.mode,
+    teacher:sess.name||sess.email, suggestions:currentAnnot.suggestions,
+    annotatedHtml: mText.innerHTML,
+    tr:document.getElementById('sTR').value, cc:document.getElementById('sCC').value,
+    lr:document.getElementById('sLR').value, gra:document.getElementById('sGRA').value,
+    note:'', teacherGrading:overall
+  }).then(function(res){
+    if(res&&res.success){AW.toast('Đã lưu nhận xét & điểm','ok');document.getElementById('modalBg').classList.remove('show');}
+    else AW.toast('Lưu thất bại','err');
+  }).finally(function(){ btn.disabled=false; btn.textContent=orig; });
+};
+
+/*═══════════ RESULTS ═══════════*/
+function showResults(){
+  document.getElementById('awPageTitle').textContent='Results';
+  content.innerHTML=
+    '<div class="aw-tabs">' +
+      '<button class="aw-tab active" data-mode="free">Free Writing</button>' +
+      '<button class="aw-tab" data-mode="inclass">In-Class Practice</button>' +
+      '<button class="aw-tab" data-mode="homework">Homework</button>' +
+    '</div><div id="resultsBox"></div>';
+  AW.els('.aw-tab').forEach(function(t){
+    t.onclick=function(){AW.els('.aw-tab').forEach(function(x){x.classList.remove('active');});t.classList.add('active');loadResults(t.dataset.mode);};
+  });
+  loadResults('free');
+}
+function loadResults(mode){
+  var box=document.getElementById('resultsBox');
+  box.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
+  AW.api('teacher.getResults',{class:sess.class,mode:mode}).then(function(res){
+    var rows=(res&&res.data)||[];
+    if(!rows.length){box.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>No results in this mode yet.</p></div>';return;}
+    box.innerHTML='<div class="aw-table-wrap"><table class="aw-table"><thead><tr>'+
+      '<th>Student ID</th><th>Name</th><th>Topic</th><th>AI Score</th><th>Teacher Score</th><th>Attempt</th></tr></thead><tbody>'+
+      rows.map(function(r){
+        return '<tr><td>'+AW.esc(r.studentId)+'</td><td>'+AW.esc(r.name||'')+'</td>'+
+          '<td>'+AW.esc(r.topic||'')+'</td>'+
+          '<td class="aw-score '+AW.scoreClass(r.aiScore)+'">'+(r.aiScore||'—')+'</td>'+
+          '<td class="aw-score">'+(r.teacherScore||'—')+'</td>'+
+          '<td>'+(r.attempt||1)+'</td></tr>';
+      }).join('')+'</tbody></table></div>';
+  });
+}
+
+/*═══════════ NEW ASSIGNMENT ═══════════*/
+window.newAssignment=function(){
+  var topic=prompt('Tên bài / chủ đề:'); if(!topic)return;
+  var promptText=prompt('Đề bài (prompt):')||'';
+  var mode=prompt('Chế độ (homework hoặc inclass):','homework')||'homework';
+  var req=prompt('Số lần viết bắt buộc:','5')||'1';
+  AW.api('teacher.createAssignment',{
+    class:sess.class,mode:mode,topic:topic,prompt:promptText,requiredAttempts:parseInt(req,10)
+  }).then(function(res){
+    if(res&&res.success)AW.toast('Đã tạo bài tập','ok'); else AW.toast('Tạo thất bại','err');
+  });
+};
+
+/*═══════════ SETTINGS ═══════════*/
+function showSettings(){
+  document.getElementById('awPageTitle').textContent='Settings';
+  content.innerHTML='<div class="aw-card" style="padding:24px;max-width:520px">'+
+    '<h3 style="margin:0 0 6px">Account</h3>'+
+    '<p style="color:var(--aw-ink-2);font-size:.9rem">Name: <b>'+AW.esc(sess.name||'')+'</b><br>Email: <b>'+AW.esc(sess.email||'')+'</b><br>Class: <b>'+AW.esc(sess.class||'')+'</b></p>'+
+    '</div>';
+}
+
+/*═══════════ init (support #hash deep-link) ═══════════*/
+var hash=(location.hash||'').replace('#','');
+if(hash==='live'){showLive();AW.setActiveNav('live');}
+else if(hash==='results'){showResults();AW.setActiveNav('results');}
+else showOverview();
+</script>
+</body>
+</html>

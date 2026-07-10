@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Write · ArticuWrite</title>
+<link rel="stylesheet" href="aw-theme.css">
+<style>
+  .aw-write-grid{display:grid;grid-template-columns:1fr 340px;gap:20px}
+  @media(max-width:960px){.aw-write-grid{grid-template-columns:1fr}}
+  .aw-prompt-box{background:var(--aw-surface-2);border:1px solid var(--aw-border);border-radius:var(--aw-r);padding:18px 20px;margin-bottom:16px}
+  .aw-prompt-box h4{margin:0 0 6px;font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;color:var(--aw-primary);font-weight:700}
+  .aw-prompt-box p{margin:0;color:var(--aw-ink);line-height:1.55}
+  .aw-editor-toolbar{display:flex;gap:2px;padding:8px 10px;border:1px solid var(--aw-border);border-bottom:none;border-radius:var(--aw-r) var(--aw-r) 0 0;background:var(--aw-surface-2);flex-wrap:wrap}
+  .aw-tb-btn{width:32px;height:32px;border:none;background:none;border-radius:6px;cursor:pointer;color:var(--aw-ink-2);font-weight:700;display:grid;place-items:center;font-size:.9rem}
+  .aw-tb-btn:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
+  .aw-editor{min-height:400px;border:1px solid var(--aw-border);border-radius:0 0 var(--aw-r) var(--aw-r);padding:18px 20px;font-family:var(--aw-font-body);font-size:1rem;line-height:1.7;color:var(--aw-ink);background:var(--aw-surface);outline:none;overflow-y:auto}
+  .aw-editor:focus{border-color:var(--aw-primary);box-shadow:inset 0 0 0 1px var(--aw-primary)}
+  .aw-editor:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
+  .aw-write-meta{display:flex;align-items:center;gap:16px;margin:12px 0;font-size:.85rem;color:var(--aw-ink-2)}
+  .aw-timer{margin-left:auto;font-weight:700;font-family:var(--aw-font-display);color:var(--aw-primary)}
+  .aw-side-panel{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:18px;box-shadow:var(--aw-shadow-sm);align-self:start}
+  .aw-side-panel h3{margin:0 0 14px;font-size:1rem}
+  .aw-band{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+  .aw-band-circ{width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,var(--aw-primary),#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 auto}
+  .aw-band-num{font-size:1.7rem;font-weight:800;color:#fff;line-height:1;font-family:var(--aw-font-display)}
+  .aw-band-lbl{font-size:.5rem;font-weight:700;color:rgba(255,255,255,.7);letter-spacing:.1em}
+  .aw-crit{margin-bottom:12px}
+  .aw-crit-top{display:flex;justify-content:space-between;font-size:.84rem;margin-bottom:4px}
+  .aw-crit-name{color:var(--aw-ink-2);font-weight:500}
+  .aw-crit-val{font-weight:700;color:var(--aw-ink)}
+  .aw-bar{height:7px;background:var(--aw-border-2);border-radius:4px;overflow:hidden}
+  .aw-bar-fill{height:100%;background:linear-gradient(90deg,var(--aw-primary),#0A93BD);border-radius:4px;width:0;transition:width .5s ease}
+  .aw-fb-block{margin-top:14px;padding-top:14px;border-top:1px solid var(--aw-border-2)}
+  .aw-fb-block h4{margin:0 0 8px;font-size:.82rem;color:var(--aw-primary);text-transform:uppercase;letter-spacing:.04em}
+  .aw-fb-item{font-size:.86rem;line-height:1.5;color:var(--aw-ink-2);margin-bottom:8px;padding-left:10px;border-left:2px solid var(--aw-border)}
+  .aw-fb-item b{color:var(--aw-ink)}
+  .err-mark{color:var(--aw-danger);text-decoration:line-through}
+  .fix-mark{color:var(--aw-writing);font-weight:600}
+  .aw-revs{display:flex;flex-direction:column;gap:8px}
+  .aw-rev{background:var(--aw-surface-2);border:1px solid var(--aw-border);border-radius:var(--aw-r-sm);padding:10px 12px;font-size:.84rem}
+  .aw-rev-top{display:flex;justify-content:space-between;font-weight:600;color:var(--aw-ink);margin-bottom:3px}
+  .aw-rev-note{color:var(--aw-ink-3);font-size:.78rem}
+  .aw-keybar{display:flex;gap:8px;align-items:center;background:#FFF6E5;border:1px solid #F5D98A;border-radius:var(--aw-r-sm);padding:10px 12px;margin-bottom:16px;font-size:.85rem;color:#7A5A0A}
+  .aw-keybar input{flex:1;border:1px solid #E8C566;border-radius:6px;padding:6px 10px;font-family:var(--aw-font-body)}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script src="aw-common.js"></script>
+<script>
+/*──────── session + params ────────*/
+var sess = AW.session.require('student');
+if (!sess) throw 'redirect';
+
+var qp = new URLSearchParams(location.search);
+var MODE = qp.get('mode') || 'free';               // free | homework | inclass
+var TOPIC = qp.get('topic') || 'Free Writing';
+var PROMPT = qp.get('prompt') || 'Write about your opinion on the given topic.';
+var TASK_TYPE = qp.get('type') || '';
+var TOPIC_ID = qp.get('topicId') || ('T' + Date.now().toString(36));
+var RETRY = qp.get('retry') === '1';
+var DURATION_MIN = parseInt(qp.get('duration') || '0', 10);
+
+var MODE_LABEL = { free:'Free Writing', homework:'Homework', inclass:'In-class Practice' }[MODE] || 'Free Writing';
+
+var nav = [
+  { id:'modes',   label:'Practice Modes', icon:'modes', href:'student.html' },
+  { id:'library', label:'Library', icon:'library', href:'library.html' },
+  { id:'progress',label:'My Progress', icon:'progress', href:'student.html#progress' },
+  { id:'settings',label:'Settings', icon:'settings', href:'student.html#settings' },
+];
+
+var content = AW.renderShell({
+  mount:'app', nav:nav, eyebrow:'Student Interface', title:MODE_LABEL
+});
+
+var startTime = new Date();
+var attempt = 1;
+
+content.innerHTML =
+  (AW.geminiKey.get() ? '' :
+    '<div class="aw-keybar"><span>🔑 Nhập Gemini API key (lưu trên máy bạn) để chấm bài:</span>' +
+    '<input id="keyInput" type="password" placeholder="AIza…"><button class="aw-btn aw-btn-accent" id="keySave" style="padding:6px 14px">Save</button></div>') +
+  '<div class="aw-write-grid">' +
+    '<div>' +
+      '<div class="aw-prompt-box"><h4>'+AW.esc(TASK_TYPE || 'IELTS Task 2 Prompt')+'</h4>' +
+        '<p>'+AW.esc(PROMPT)+'</p></div>' +
+      '<div class="aw-editor-toolbar">' +
+        '<button class="aw-tb-btn" data-cmd="bold"><b>B</b></button>' +
+        '<button class="aw-tb-btn" data-cmd="italic"><i>I</i></button>' +
+        '<button class="aw-tb-btn" data-cmd="underline"><u>U</u></button>' +
+        '<button class="aw-tb-btn" data-cmd="insertUnorderedList">•</button>' +
+      '</div>' +
+      '<div class="aw-editor" id="editor" contenteditable="true" data-ph="Start writing your response here…"></div>' +
+      '<div class="aw-write-meta"><span id="wc">0 words</span>' +
+        (DURATION_MIN ? '<span class="aw-timer" id="timer">'+DURATION_MIN+':00</span>' : '') +
+      '</div>' +
+      '<button class="aw-btn aw-btn-primary aw-btn-block" id="gradeBtn">Get AI Feedback</button>' +
+    '</div>' +
+    '<div class="aw-side-panel" id="side">' +
+      '<h3>'+(MODE==='free'?'AI Feedback':'Revision History')+'</h3>' +
+      '<div id="sideBody"><p style="color:var(--aw-ink-3);font-size:.88rem">Viết xong rồi bấm <b>Get AI Feedback</b> để nhận điểm và nhận xét.</p></div>' +
+      (MODE!=='free' ? '<button class="aw-btn aw-btn-accent aw-btn-block" id="submitBtn" style="margin-top:14px">Submit '+(MODE==='homework'?'Homework':'Practice')+'</button>' : '') +
+    '</div>' +
+  '</div>';
+
+/*──────── key bar ────────*/
+if (!AW.geminiKey.get()) {
+  document.getElementById('keySave').onclick = function(){
+    var k = document.getElementById('keyInput').value.trim();
+    if (k) { AW.geminiKey.set(k); AW.toast('Đã lưu API key','ok'); document.querySelector('.aw-keybar').style.display='none'; }
+  };
+}
+
+/*──────── editor toolbar ────────*/
+var editor = document.getElementById('editor');
+AW.els('.aw-tb-btn').forEach(function(b){
+  b.onclick = function(){ document.execCommand(b.dataset.cmd, false, null); editor.focus(); };
+});
+var wc = document.getElementById('wc');
+editor.addEventListener('input', function(){
+  wc.textContent = AW.wordCount(editor.innerText) + ' words';
+});
+
+/*──────── retry: load previous attempt ────────*/
+if (RETRY) {
+  AW.api('write.getAttempt', { studentId: sess.studentId, topicId: TOPIC_ID }).then(function(res){
+    if (res && res.success) {
+      editor.innerText = res.data.essay || '';
+      wc.textContent = AW.wordCount(editor.innerText)+' words';
+      AW.toast('Đã tải bài cũ để viết lại','ok');
+    }
+  });
+}
+
+/*──────── timer ────────*/
+if (DURATION_MIN) {
+  var remain = DURATION_MIN*60;
+  var tEl = document.getElementById('timer');
+  var tick = setInterval(function(){
+    remain--;
+    if (remain<=0){ clearInterval(tick); AW.toast('Hết giờ!','err'); }
+    var m=Math.floor(remain/60), s=remain%60;
+    tEl.textContent = m+':'+(s<10?'0':'')+s;
+  },1000);
+}
+
+/*──────── heartbeat (live observation) ────────*/
+var lastStatus='Writing', idleTimer=null;
+function sendHeartbeat(status){
+  AW.api('write.heartbeat', {
+    studentId: sess.studentId, name: sess.name, class: sess.class,
+    topicId: TOPIC_ID, topic: TOPIC, mode: MODE,
+    status: status || 'Writing', wordCount: AW.wordCount(editor.innerText),
+    snapshot: editor.innerText.slice(0,8000)
+  });
+}
+// send every 10s while on page; mark idle after 45s no typing
+setInterval(function(){ sendHeartbeat(lastStatus); }, 10000);
+editor.addEventListener('input', function(){
+  lastStatus='Writing';
+  clearTimeout(idleTimer);
+  idleTimer=setTimeout(function(){ lastStatus='Idle'; }, 45000);
+});
+sendHeartbeat('Writing'); // initial ping
+
+/*──────── grading ────────*/
+var lastResult=null;
+document.getElementById('gradeBtn').onclick = function(){
+  var text = editor.innerText.trim();
+  if (AW.wordCount(text) < 20) { AW.toast('Viết ít nhất 20 từ trước khi chấm.','err'); return; }
+  var key = AW.geminiKey.get();
+  if (!key) { AW.toast('Cần nhập Gemini API key trước.','err'); return; }
+
+  var btn=this; btn.disabled=true; var orig=btn.textContent;
+  btn.innerHTML='<span class="aw-spin"></span> Grading…';
+
+  gradeWithGemini({ writing:text, question:PROMPT, attempt:attempt }, key)
+    .then(function(result){
+      lastResult=result;
+      renderFeedback(result);
+      // save each graded attempt
+      return AW.api('write.saveResult', {
+        studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
+        startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
+        duration:Math.round((Date.now()-startTime)/1000),
+        cc:result.scores.CC, ta:result.scores.TR, grammar:result.scores.GRA,
+        aiGrading:result.overall, teacherGrading:'', essay:text
+      });
+    })
+    .then(function(saveRes){
+      if (saveRes && saveRes.success) attempt = (saveRes.data.attempt||attempt)+1;
+      AW.toast('Đã chấm & lưu bài (lần '+(attempt-1)+')','ok');
+    })
+    .catch(function(e){ AW.toast(e.message||'Lỗi chấm bài','err'); })
+    .finally(function(){ btn.disabled=false; btn.textContent=orig; });
+};
+
+/*──────── submit (homework/inclass) ────────*/
+var submitBtn=document.getElementById('submitBtn');
+if (submitBtn) submitBtn.onclick=function(){
+  var text=editor.innerText.trim();
+  if(AW.wordCount(text)<20){AW.toast('Bài quá ngắn để nộp.','err');return;}
+  sendHeartbeat('Submitted');
+  AW.api('write.saveResult',{
+    studentId:sess.studentId,name:sess.name,mode:MODE,topic:TOPIC,topicId:TOPIC_ID,
+    startTime:startTime.toISOString(),finishTime:new Date().toISOString(),
+    duration:Math.round((Date.now()-startTime)/1000),
+    cc:lastResult?lastResult.scores.CC:'',ta:lastResult?lastResult.scores.TR:'',
+    grammar:lastResult?lastResult.scores.GRA:'',aiGrading:lastResult?lastResult.overall:'',
+    teacherGrading:'',essay:text
+  }).then(function(res){
+    if(res&&res.success){AW.toast('Đã nộp bài thành công!','ok');setTimeout(function(){location.href='student.html';},900);}
+    else AW.toast((res&&res.error)||'Nộp thất bại','err');
+  });
+};
+
+/*──────── render feedback (indirect→direct by attempt) ────────*/
+function renderFeedback(r){
+  var s=r.scores||{};
+  var directMode = attempt >= 2; // Revision 1 = indirect; later = direct detail
+  var html =
+    '<div class="aw-band"><div class="aw-band-circ"><div class="aw-band-num">'+(r.overall||'—')+'</div><div class="aw-band-lbl">BAND</div></div>' +
+      '<div><b>'+AW.esc(r.band_description||'Overall Band')+'</b><p style="margin:4px 0 0;font-size:.82rem;color:var(--aw-ink-3)">'+AW.esc((r.overall_feedback_vi||'').slice(0,90))+'</p></div></div>' +
+    crit('Task Response', s.TR) + crit('Coherence & Cohesion', s.CC) +
+    crit('Lexical Resource', s.LR) + crit('Grammar', s.GRA);
+
+  if (!directMode) {
+    // INDIRECT: chỉ nêu vùng/loại lỗi, khuyến khích tự sửa
+    html += '<div class="aw-fb-block"><h4>Areas to review (self-edit first)</h4>';
+    var areas=[];
+    if((r.gra_errors||[]).length) areas.push('<b>Grammar</b>: '+r.gra_errors.length+' issue(s) to find & fix');
+    if((r.lr_issues||[]).length) areas.push('<b>Word choice</b>: '+r.lr_issues.length+' place(s) to improve');
+    if(r.cc_feedback&&r.cc_feedback.assessment_vi) areas.push('<b>Coherence</b>: '+AW.esc(r.cc_feedback.assessment_vi.slice(0,70)));
+    html += areas.length? areas.map(function(a){return '<div class="aw-fb-item">'+a+'</div>';}).join('')
+                        : '<div class="aw-fb-item">Good work — no major issues flagged.</div>';
+    html += '<p style="font-size:.8rem;color:var(--aw-ink-3);margin-top:8px">Sửa những chỗ trên rồi bấm <b>Get AI Feedback</b> lần nữa để xem gợi ý chi tiết.</p></div>';
+  } else {
+    // DIRECT: chi tiết
+    if((r.gra_errors||[]).length){
+      html+='<div class="aw-fb-block"><h4>Grammar</h4>'+r.gra_errors.slice(0,6).map(function(e){
+        return '<div class="aw-fb-item"><span class="err-mark">'+AW.esc(e.wrong)+'</span> → <span class="fix-mark">'+AW.esc(e.correct)+'</span><br><span style="font-size:.8rem">'+AW.esc(e.explanation_vi||'')+'</span></div>';
+      }).join('')+'</div>';
+    }
+    if((r.lr_issues||[]).length){
+      html+='<div class="aw-fb-block"><h4>Word choice</h4>'+r.lr_issues.slice(0,5).map(function(e){
+        return '<div class="aw-fb-item"><span class="err-mark">'+AW.esc(e.original)+'</span> → <span class="fix-mark">'+AW.esc(e.better)+'</span><br><span style="font-size:.8rem">'+AW.esc(e.explanation_vi||'')+'</span></div>';
+      }).join('')+'</div>';
+    }
+  }
+  document.getElementById('sideBody').innerHTML=html;
+  // animate bars
+  setTimeout(function(){AW.els('.aw-bar-fill').forEach(function(b){b.style.width=b.dataset.w;});},50);
+}
+function crit(name,val){
+  var pct=val?Math.min(100,(parseFloat(val)/9)*100):0;
+  return '<div class="aw-crit"><div class="aw-crit-top"><span class="aw-crit-name">'+name+'</span><span class="aw-crit-val">'+(val||'—')+'</span></div>'+
+    '<div class="aw-bar"><div class="aw-bar-fill" data-w="'+pct+'%"></div></div></div>';
+}
+
+/*──────── Gemini grading (adapted from original ArticuWrite) ────────*/
+function applyBoost(r){
+  ['TR','CC','LR','GRA'].forEach(function(k){
+    if(r.scores&&typeof r.scores[k]==='number'){ r.scores[k]=Math.min(9,r.scores[k]+1); }
+  });
+  if(r.scores){
+    var avg=(r.scores.TR+r.scores.CC+r.scores.LR+r.scores.GRA)/4;
+    r.overall=Math.round(avg*2)/2;
+  }
+  return r;
+}
+async function gradeWithGemini(payload, geminiKey){
+  var text=payload.writing||'', question=payload.question||'';
+  var systemInstruction='You are a strict IELTS Writing examiner. Grade only the essay provided by the student. Every piece of feedback must quote directly from that essay. Never invent examples or use content from other essays.\n\n'+
+    'IELTS BAND DESCRIPTORS:\n'+
+    'TR/TA: Band 7=covers all parts, clear position, ideas developed. Band 6=addresses parts but some inadequately. Band 5=partial, limited. Band 4=minimal.\n'+
+    'CC: Band 7=logical, varied cohesion, good paragraphing. Band 6=mostly coherent. Band 5=some org. Band 4=incoherent.\n'+
+    'LR: Band 7=flexible range, minor errors. Band 6=adequate. Band 5=limited. Band 4=basic.\n'+
+    'GRA: Band 7=complex structures, frequent error-free. Band 6=mix. Band 5=frequent errors. Band 4=many errors.\n\n'+
+    'SCORING RULES:\n- Components: whole numbers or X.5 if borderline.\n- Overall = average of 4, round to 0.5.\n- Most students score 5-6. Band 7 = genuinely good. Band 8+ very rare.\n- Grammar errors → GRA ≤ 6. Basic vocab → LR ≤ 6.\n\n'+
+    'Return ONLY a JSON object with fields: scores(TR,CC,LR,GRA), overall, band_description, overall_feedback_vi, tr_comments(array of {original_idea,assessment_vi,suggestion_en}), gra_errors(array of {wrong,correct,explanation_vi}), lr_issues(array of {original,better,explanation_vi,alternatives}), cc_feedback({assessment_vi,issues,suggestions}), corrected_text.';
+  var userMessage='Grade this IELTS essay.\n\nTASK: '+question+'\n\nSTUDENT ESSAY TO GRADE:\n---\n'+text+'\n---\n\nAll feedback fields must only reference text from the student essay above.';
+  var prompt=systemInstruction+'\n\n'+userMessage;
+
+  var resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+geminiKey,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.1,maxOutputTokens:12000}})
+  });
+  if(!resp.ok){var err=await resp.json().catch(function(){return{};});throw new Error('Gemini error: '+((err.error&&err.error.message)||resp.status));}
+  var data=await resp.json();
+  var raw=(((data.candidates||[])[0]||{}).content||{}).parts;
+  raw=raw&&raw[0]?raw[0].text:'';
+  if(!raw) throw new Error('Gemini trả về rỗng. Thử lại.');
+  var clean=raw.replace(/<thinking>[\s\S]*?<\/thinking>/gi,'').replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
+  var si=clean.indexOf('{'),depth=0,ei=-1;
+  for(var ci=si;ci<clean.length;ci++){if(clean[ci]==='{')depth++;else if(clean[ci]==='}'){depth--;if(depth===0){ei=ci;break;}}}
+  if(si===-1||ei===-1) throw new Error('Không đọc được JSON từ Gemini.');
+  return applyBoost(JSON.parse(clean.substring(si,ei+1)));
+}
+</script>
+</body>
+</html>

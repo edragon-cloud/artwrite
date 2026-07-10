@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Library · ArticuWrite</title>
+<link rel="stylesheet" href="aw-theme.css">
+</head>
+<body>
+<div id="app"></div>
+
+<script src="aw-common.js"></script>
+<script>
+  var sess = AW.session.require();          // any logged-in user
+  if (!sess) throw 'redirect';
+  var isTeacher = sess.role === 'teacher';
+
+  var nav = isTeacher ? [
+    { id:'overview', label:'Class Overview', icon:'overview', href:'teacher.html' },
+    { id:'live',     label:'Live Observation', icon:'live', href:'teacher.html#live' },
+    { id:'results',  label:'Results', icon:'results', href:'teacher.html#results' },
+    { id:'library',  label:'Library', icon:'library', active:true },
+  ] : [
+    { id:'modes',   label:'Practice Modes', icon:'modes', href:'student.html' },
+    { id:'library', label:'Library', icon:'library', active:true },
+    { id:'progress',label:'My Progress', icon:'progress', href:'student.html#progress' },
+    { id:'settings',label:'Settings', icon:'settings', href:'student.html#settings' },
+  ];
+
+  var content = AW.renderShell({
+    mount:'app', nav:nav,
+    eyebrow: (isTeacher ? 'Teacher' : 'Student') + ' Interface',
+    title:'Library',
+  });
+
+  content.innerHTML =
+    '<div class="aw-toolbar">' +
+      '<div class="aw-search">' + AW.icon('search') +
+        '<input id="q" placeholder="Search prompts, topics, keywords…">' +
+      '</div>' +
+      '<select class="aw-select" id="fTopic"><option value="">By topic</option></select>' +
+      '<select class="aw-select" id="fType"><option value="">Type</option>' +
+        '<option>Opinion</option><option>Discussion</option><option>Problem-Solution</option>' +
+        '<option>Advantages-Disadvantages</option><option>Two-part</option></select>' +
+    '</div>' +
+    '<div id="grid" class="aw-grid"></div>' +
+    '<div id="empty" class="aw-empty" style="display:none">' + AW.icon('library') +
+      '<p>No prompts found. Try a different search.</p></div>';
+
+  var libData = [];  // [{topic, questions:[...]}]
+  var flat = [];     // flattened question list
+
+  var grid = document.getElementById('grid');
+  var empty = document.getElementById('empty');
+
+  grid.innerHTML = '<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span><p>Loading library…</p></div>';
+
+  AW.api('write.getLibrary', {}).then(function(res){
+    if (!res || !res.success) { grid.innerHTML = ''; empty.style.display=''; return; }
+    libData = res.data || [];
+    // flatten
+    libData.forEach(function(t){
+      (t.questions||[]).forEach(function(q){
+        flat.push({
+          topic: t.topic,
+          question: q.question || q.q || '',
+          taskType: q.taskType || '',
+          difficulty: (q.difficulty || '').toString(),
+          model: q.modelParagraph || ''
+        });
+      });
+    });
+    // populate topic filter
+    var fTopic = document.getElementById('fTopic');
+    libData.map(function(t){return t.topic;}).forEach(function(tp){
+      var o=document.createElement('option'); o.value=tp; o.textContent=tp; fTopic.appendChild(o);
+    });
+    render(flat);
+  }).catch(function(){ grid.innerHTML=''; empty.style.display=''; });
+
+  function diffClass(d){
+    d=(d||'').toLowerCase();
+    if(d.indexOf('eas')>-1||d==='1') return 'aw-tag-easy';
+    if(d.indexOf('hard')>-1||d.indexOf('adv')>-1||d==='3') return 'aw-tag-hard';
+    return 'aw-tag-medium';
+  }
+  function diffLabel(d){ return d ? d : 'Medium'; }
+
+  function render(list){
+    if(!list.length){ grid.innerHTML=''; empty.style.display=''; return; }
+    empty.style.display='none';
+    grid.innerHTML = list.map(function(q,i){
+      return '<div class="aw-lib-card" data-i="'+i+'">' +
+        '<h3 class="aw-lib-title">'+AW.esc(q.question || q.topic)+'</h3>' +
+        (q.taskType ? '<span class="aw-tag aw-tag-type">'+AW.esc(q.taskType)+'</span> ' : '') +
+        (q.difficulty ? '<span class="aw-tag '+diffClass(q.difficulty)+'">'+AW.esc(diffLabel(q.difficulty))+'</span>' : '') +
+        '<p class="aw-lib-desc">'+AW.esc((q.model||'').slice(0,120) || q.topic)+(q.model && q.model.length>120?'…':'')+'</p>' +
+      '</div>';
+    }).join('');
+    // click → open in writer (students) / preview (teacher)
+    AW.els('.aw-lib-card').forEach(function(card){
+      card.onclick = function(){
+        var q = list[+card.dataset.i];
+        var params = new URLSearchParams({
+          topic: q.topic, prompt: q.question, type: q.taskType, mode: 'free'
+        });
+        // students go straight to writing; teachers just preview via alert-free toast
+        if (isTeacher) {
+          AW.toast('Prompt: ' + (q.question||q.topic), 'ok', 3500);
+        } else {
+          location.href = 'write.html?' + params.toString();
+        }
+      };
+    });
+  }
+
+  function applyFilters(){
+    var v=(document.getElementById('q').value||'').toLowerCase();
+    var tp=document.getElementById('fTopic').value;
+    var ty=document.getElementById('fType').value;
+    render(flat.filter(function(q){
+      if(tp && q.topic!==tp) return false;
+      if(ty && q.taskType!==ty) return false;
+      if(v){
+        var hay=(q.question+' '+q.topic+' '+q.taskType+' '+q.model).toLowerCase();
+        if(hay.indexOf(v)===-1) return false;
+      }
+      return true;
+    }));
+  }
+  document.getElementById('q').oninput = applyFilters;
+  document.getElementById('fTopic').onchange = applyFilters;
+  document.getElementById('fType').onchange = applyFilters;
+</script>
+</body>
+</html>

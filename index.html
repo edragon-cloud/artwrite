@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<html lang="vi"><head><meta charset="UTF-8">
+<meta http-equiv="refresh" content="0; url=login.html">
+<title>ArticuWrite</title></head>
+<body><script>
+  try{var s=JSON.parse(localStorage.getItem('aw_session'));
+    if(s&&s.role)location.href=s.role==='teacher'?'teacher.html':'student.html';
+    else location.href='login.html';
+  }catch(e){location.href='login.html';}
+</script></body></html>
