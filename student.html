@@ -132,17 +132,40 @@ function loadAssignments(mode){
 function showProgress(){
   document.getElementById('awPageTitle').textContent='My Progress';
   content.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
-  AW.api('write.getHistory',{studentId:sess.studentId}).then(function(res){
+  AW.api('write.getMyResults',{studentId:sess.studentId}).then(function(res){
     var rows=(res&&res.data)||[];
-    if(!rows.length){content.innerHTML='<div class="aw-empty">'+AW.icon('progress')+'<p>No data yet.</p></div>';return;}
-    content.innerHTML='<div class="aw-table-wrap"><table class="aw-table"><thead><tr>'+
-      '<th>Topic</th><th>Mode</th><th>Date</th><th></th></tr></thead><tbody>'+
-      rows.map(function(h){return '<tr><td>'+AW.esc(h.topic)+'</td><td>'+AW.esc(h.mode)+'</td>'+
-        '<td>'+new Date(h.timestamp).toLocaleDateString()+'</td>'+
-        '<td><button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="location.href=\'write.html?mode='+h.mode+'&retry=1&topicId='+encodeURIComponent(h.topicId)+'&topic='+encodeURIComponent(h.topic)+'\'">Re-try</button></td></tr>';
-      }).join('')+'</tbody></table></div>';
+    if(!rows.length){
+      content.innerHTML='<div class="aw-empty">'+AW.icon('progress')+'<p>Bạn chưa có bài nào. Bắt đầu luyện tập để thấy điểm ở đây.</p></div>';
+      return;
+    }
+    var modeLabel={free:'Free Writing',homework:'Homework',inclass:'In-class'};
+    var tableRows=rows.map(function(r){
+      var overall=r.overall||r.teacher||'—';
+      var scoreColor=overall>=7?'var(--aw-writing)':overall>=5.5?'var(--aw-accent-dk)':'var(--aw-danger)';
+      var dur=r.duration?Math.round(parseInt(r.duration,10)/60)+'m':'—';
+      var date=r.timestamp?new Date(r.timestamp).toLocaleDateString('vi-VN'):'—';
+      return '<tr>'+
+        '<td>'+AW.esc(r.topic||'')+'</td>'+
+        '<td><span class="aw-tag aw-tag-type" style="font-size:.72rem">'+AW.esc(modeLabel[r.mode]||r.mode)+'</span></td>'+
+        '<td style="text-align:center">'+AW.esc(String(r.attempt||'1'))+'</td>'+
+        '<td style="text-align:center"><b style="color:'+scoreColor+';font-size:1.05rem">'+AW.esc(String(overall))+'</b></td>'+
+        '<td style="text-align:center;font-size:.8rem">TR '+AW.esc(String(r.tr||'—'))+' · CC '+AW.esc(String(r.cc||'—'))+'<br>LR '+AW.esc(String(r.lr||'—'))+' · GRA '+AW.esc(String(r.gra||'—'))+'</td>'+
+        '<td style="text-align:center">'+dur+'</td>'+
+        '<td style="font-size:.8rem;color:var(--aw-ink-3)">'+date+'</td>'+
+        '<td><button class="aw-btn aw-btn-ghost" style="padding:5px 12px;font-size:.8rem" onclick="retryFromProgress(\''+AW.esc(r.mode)+'\',\''+AW.esc(r.topicId)+'\',\''+AW.esc(r.topic)+'\')">Re-try</button></td>'+
+      '</tr>';
+    }).join('');
+    content.innerHTML=
+      '<h2 class="aw-sec-title">My Scores</h2>'+
+      '<div class="aw-table-wrap" style="overflow-x:auto"><table class="aw-table">'+
+        '<thead><tr><th>Topic</th><th>Mode</th><th>Attempt</th><th>Band</th><th>Criteria</th><th>Duration</th><th>Date</th><th></th></tr></thead>'+
+        '<tbody>'+tableRows+'</tbody>'+
+      '</table></div>';
   });
 }
+window.retryFromProgress=function(mode,topicId,topic){
+  location.href='write.html?mode='+encodeURIComponent(mode)+'&retry=1&topicId='+encodeURIComponent(topicId)+'&topic='+encodeURIComponent(topic);
+};
 
 function showSettings(){
   document.getElementById('awPageTitle').textContent='Settings';

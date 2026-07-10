@@ -190,6 +190,14 @@
     document.getElementById('awLogout').onclick = function () { AW.session.logout(); };
     var menuBtn = document.getElementById('awMenuBtn');
     if (menuBtn) menuBtn.onclick = function () { document.getElementById('awSide').classList.toggle('open'); };
+    // close sidebar when clicking outside on mobile
+    document.addEventListener('click', function(e){
+      var side = document.getElementById('awSide');
+      var btn = document.getElementById('awMenuBtn');
+      if (side && side.classList.contains('open') && !side.contains(e.target) && e.target !== btn) {
+        side.classList.remove('open');
+      }
+    });
     AW.els('[data-nav]').forEach(function (a) {
       a.onclick = function () { if (opts.onNav) opts.onNav(a.getAttribute('data-nav'), a); };
     });
@@ -209,6 +217,13 @@
     return String(str == null ? '' : str).replace(/[&<>"']/g, function (c) {
       return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
     });
+  };
+
+  // Strip HTML tags, return plain text (for displaying saved richtext prompts)
+  AW.stripHtml = function (html) {
+    var tmp = document.createElement('div');
+    tmp.innerHTML = html || '';
+    return tmp.textContent || tmp.innerText || '';
   };
 
   global.AW = AW;

@@ -84,12 +84,23 @@
         <div><b id="mStudent">Student</b> <span style="color:var(--aw-ink-3)" id="mTopic"></span></div>
         <button class="aw-btn aw-btn-ghost" style="padding:6px 14px" id="mClose">Close</button>
       </div>
+      <!-- annotation toolbar -->
+      <div style="display:flex;gap:2px;flex-wrap:wrap;background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r-sm);padding:6px;margin-bottom:8px">
+        <button class="aw-tbtn" id="annBold" title="Bold"><b>B</b></button>
+        <button class="aw-tbtn" id="annItalic" title="Italic"><i>I</i></button>
+        <button class="aw-tbtn" id="annUnder" title="Underline"><u>U</u></button>
+        <span style="width:1px;background:var(--aw-border-2);margin:2px 4px;display:inline-block"></span>
+        <button class="aw-tbtn" id="annSug" title="Suggest edit (red strike + green insert)">✎ Suggest</button>
+        <button class="aw-tbtn" id="annStrike" title="Strike (delete suggestion)">S̶ Strike</button>
+        <button class="aw-tbtn" id="annHl" title="Highlight">🖍</button>
+        <button class="aw-tbtn" id="annComment" title="Comment">💬</button>
+      </div>
       <div class="aw-doc-text" id="mText" contenteditable="false"></div>
-      <p style="font-size:.78rem;color:var(--aw-ink-3);margin:10px 0 0">Bôi đen từ/cụm để chèn gợi ý sửa (gạch đỏ + chữ xanh), highlight, hoặc comment — giống chế độ Suggesting của Google Docs.</p>
+      <p style="font-size:.78rem;color:var(--aw-ink-3);margin:10px 0 0">Bôi đen văn bản rồi dùng bộ nút trên để gợi ý sửa, highlight hoặc comment. Khi xong, bấm <b>Push to Student</b> để SV thấy nhận xét.</p>
     </div>
     <div class="aw-modal-side">
       <h4>Teacher Suggestions</h4>
-      <p style="font-size:.8rem;color:var(--aw-ink-3);margin:0 0 12px">Bôi đen 1 từ/cụm trong bài để đề xuất sửa.</p>
+      <p style="font-size:.8rem;color:var(--aw-ink-3);margin:0 0 12px">Gạch đỏ = sai · Xanh = gợi ý sửa</p>
       <div class="aw-suggest-list" id="suggestList"></div>
       <h4>Scoring (IELTS)</h4>
       <div class="aw-score-input"><label>TR</label><input type="number" id="sTR" min="0" max="9" step="0.5"></div>
@@ -97,7 +108,8 @@
       <div class="aw-score-input"><label>LR</label><input type="number" id="sLR" min="0" max="9" step="0.5"></div>
       <div class="aw-score-input"><label>GRA</label><input type="number" id="sGRA" min="0" max="9" step="0.5"></div>
       <div class="aw-score-input"><label><b>Overall</b></label><input type="number" id="sOverall" min="0" max="9" step="0.5"></div>
-      <button class="aw-btn aw-btn-primary aw-btn-block" id="saveFb" style="margin-top:12px">Submit Feedback</button>
+      <button class="aw-btn aw-btn-accent aw-btn-block" id="pushFb" style="margin-top:12px">⬆ Push to Student</button>
+      <button class="aw-btn aw-btn-primary aw-btn-block" id="saveFb" style="margin-top:8px">✓ Submit & Save Score</button>
     </div>
   </div>
 </div>
@@ -303,31 +315,47 @@ function loadRoster(){
 }
 
 /*═══════════ LIVE OBSERVATION ═══════════*/
-var livePoll=null, liveSelected=null, liveData=[];
+var livePoll=null, liveSelected=null, liveData=[], liveTaskFilter='all';
 function showLive(){
   document.getElementById('awPageTitle').textContent='Live Observation';
-  content.innerHTML=
-    '<div class="aw-live-wrap">' +
-      '<div><div id="liveGrid" class="aw-live-grid"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div></div>' +
-      '<div class="aw-live-side"><h4>Session Stats</h4><div id="liveStats"></div>' +
-        '<p style="font-size:.78rem;color:var(--aw-ink-3);margin-top:14px">Click a student to open their live essay and add suggestions.</p></div>' +
-    '</div>';
-  pollLive();
-  livePoll=setInterval(pollLive, 6000);
+  // load inclass assignments for filter
+  AW.api('write.getAssignments',{class:curClass(),mode:'inclass'}).then(function(res){
+    var tasks=(res&&res.data)||[];
+    var taskOpts='<option value="all">Tất cả bài In-class</option>'+
+      tasks.map(function(t){return '<option value="'+AW.esc(t.topicId)+'">'+AW.esc(t.topic)+'</option>';}).join('');
+    content.innerHTML=
+      '<div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap">'+
+        '<select class="aw-select" id="liveTaskSel">'+taskOpts+'</select>'+
+        '<span style="font-size:.82rem;color:var(--aw-ink-3)">Poll mỗi 6s · Click vào SV để xem bài & sửa</span>'+
+      '</div>'+
+      '<div class="aw-live-wrap">' +
+        '<div><div id="liveGrid" class="aw-live-grid"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div></div>' +
+        '<div class="aw-live-side"><h4>Session Stats</h4><div id="liveStats"></div>' +
+          '<p style="font-size:.78rem;color:var(--aw-ink-3);margin-top:14px">Click a student to open their live essay and add suggestions.</p></div>' +
+      '</div>';
+    document.getElementById('liveTaskSel').onchange=function(){ liveTaskFilter=this.value; renderLive(); };
+    pollLive();
+    livePoll=setInterval(pollLive, 6000);
+  });
 }
 function stopLivePoll(){ if(livePoll){clearInterval(livePoll);livePoll=null;} }
 function pollLive(){
   AW.api('teacher.getLive',{class:curClass()}).then(function(res){
-    liveData=(res&&res.data)||[];
+    // Live Observation only tracks students doing In-class Practice
+    liveData=((res&&res.data)||[]).filter(function(s){ return s.mode==='inclass'; });
     renderLive();
   });
 }
 function renderLive(){
   var grid=document.getElementById('liveGrid'); if(!grid)return;
-  if(!liveData.length){grid.innerHTML='<div class="aw-empty">'+AW.icon('live')+'<p>No active students right now.</p></div>';
-    document.getElementById('liveStats').innerHTML='';return;}
+  var filtered = (liveTaskFilter==='all') ? liveData :
+    liveData.filter(function(s){ return String(s.topicId)===String(liveTaskFilter); });
+  if(!filtered.length){
+    grid.innerHTML='<div class="aw-empty">'+AW.icon('live')+'<p>Chưa có sinh viên nào đang làm In-class Practice. Hãy tạo bài In-class trước.</p></div>';
+    document.getElementById('liveStats').innerHTML='';return;
+  }
   var counts={Writing:0,Idle:0,Offline:0,Submitted:0};
-  grid.innerHTML=liveData.map(function(s){
+  grid.innerHTML=filtered.map(function(s){
     counts[s.status]=(counts[s.status]||0)+1;
     var dot=s.status==='Writing'?'writing':s.status==='Idle'?'idle':s.status==='Submitted'?'submitted':'offline';
     var init=(s.name||s.studentId).split(/\s+/).map(function(w){return w[0];}).slice(0,2).join('').toUpperCase();
@@ -336,7 +364,7 @@ function renderLive(){
       '<div class="aw-live-name">'+AW.esc(s.name||s.studentId)+'</div>' +
       '<div class="aw-live-status"><span class="aw-dot aw-dot-'+dot+'"></span>'+s.status+'</div></div>';
   }).join('');
-  var totalWords=liveData.reduce(function(a,s){return a+(parseInt(s.wordCount)||0);},0);
+  var totalWords=filtered.reduce(function(a,s){return a+(parseInt(s.wordCount)||0);},0);
   document.getElementById('liveStats').innerHTML=
     statRow('Writing',counts.Writing||0)+statRow('Idle',counts.Idle||0)+
     statRow('Offline',counts.Offline||0)+statRow('Submitted',counts.Submitted||0)+
@@ -345,7 +373,7 @@ function renderLive(){
   AW.els('.aw-live-cell').forEach(function(c){
     c.onclick=function(){
       liveSelected=c.dataset.sid;
-      var s=liveData.filter(function(x){return String(x.studentId)===String(liveSelected);})[0];
+      var s=filtered.filter(function(x){return String(x.studentId)===String(liveSelected);})[0];
       if(s) openAnnotation(s);
     };
   });
@@ -367,13 +395,44 @@ function openAnnotation(s){
   currentAnnot={ studentId:s.studentId, topicId:s.topicId, mode:s.mode, suggestions:[] };
   document.getElementById('mStudent').textContent=s.name||s.studentId;
   document.getElementById('mTopic').textContent=s.topic?('· '+s.topic):'';
-  // plain text → editable doc
   mText.textContent=s.snapshot||'(chưa có nội dung)';
   mText.setAttribute('contenteditable','true');
   document.getElementById('suggestList').innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">Chưa có đề xuất nào.</p>';
   ['sTR','sCC','sLR','sGRA','sOverall'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('modalBg').classList.add('show');
+  // wire toolbar buttons to trigger same actions as popup
+  document.getElementById('annBold').onclick=function(){ document.execCommand('bold'); };
+  document.getElementById('annItalic').onclick=function(){ document.execCommand('italic'); };
+  document.getElementById('annUnder').onclick=function(){ document.execCommand('underline'); };
+  document.getElementById('annSug').onclick=function(){ triggerAnnotation('suggest'); };
+  document.getElementById('annStrike').onclick=function(){ triggerAnnotation('strike'); };
+  document.getElementById('annHl').onclick=function(){ triggerAnnotation('highlight'); };
+  document.getElementById('annComment').onclick=function(){ triggerAnnotation('comment'); };
 }
+function triggerAnnotation(type){
+  // save current selection if any, or re-use savedRange
+  var sel=window.getSelection();
+  if(sel.rangeCount && sel.toString().trim()) savedRange=sel.getRangeAt(0).cloneRange();
+  if(type==='suggest') document.getElementById('popSuggest').onclick();
+  else if(type==='strike') document.getElementById('popStrike').onclick();
+  else if(type==='highlight') document.getElementById('popHl').onclick();
+  else if(type==='comment') document.getElementById('popComment').onclick();
+}
+// Push to Student — writes annotatedHtml back to LiveSessions snapshot
+// so student can poll and see teacher's inline marks
+document.getElementById('pushFb').onclick=function(){
+  var btn=this; btn.disabled=true; var o=btn.innerHTML;
+  btn.innerHTML='<span class="aw-spin"></span>';
+  AW.api('teacher.saveAnnotation',{
+    studentId:currentAnnot.studentId, topicId:currentAnnot.topicId, mode:currentAnnot.mode,
+    teacher:sess.name||sess.email, suggestions:currentAnnot.suggestions,
+    annotatedHtml: mText.innerHTML,
+    tr:'', cc:'', lr:'', gra:'', note:'push', teacherGrading:''
+  }).then(function(res){
+    if(res&&res.success) AW.toast('Đã gửi nhận xét tới sinh viên','ok');
+    else AW.toast('Gửi thất bại','err');
+  }).finally(function(){ btn.disabled=false; btn.innerHTML=o; });
+};
 document.getElementById('mClose').onclick=function(){
   document.getElementById('modalBg').classList.remove('show');liveSelected=null;selPop.classList.remove('show');
 };
@@ -575,25 +634,40 @@ function renderResults(q){
 function showAssignments(){
   document.getElementById('awPageTitle').textContent='Assignments';
   content.innerHTML=
-    '<div style="display:flex;gap:10px;margin-bottom:18px">'+
+    '<div style="display:flex;gap:10px;margin-bottom:16px">'+
       '<button class="aw-btn aw-btn-primary" onclick="newAssignment(\'homework\')">+ New Homework</button>'+
       '<button class="aw-btn aw-btn-ghost" onclick="newAssignment(\'inclass\')">+ New In-class Task</button>'+
     '</div>'+
+    '<div class="aw-tabs" id="assignTabs">'+
+      '<button class="aw-tab active" data-amode="inclass">In-class Practice</button>'+
+      '<button class="aw-tab" data-amode="homework">Homework</button>'+
+    '</div>'+
     '<div id="assignList"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div>';
-  loadAssignmentList();
+  AW.els('[data-amode]').forEach(function(t){
+    t.onclick=function(){
+      AW.els('[data-amode]').forEach(function(x){x.classList.remove('active');});
+      t.classList.add('active');
+      loadAssignmentList(t.dataset.amode);
+    };
+  });
+  loadAssignmentList('inclass');
 }
-function loadAssignmentList(){
-  AW.api('write.getAssignments',{class:curClass()}).then(function(res){
+function loadAssignmentList(mode){
+  AW.api('write.getAssignments',{class:curClass(),mode:mode}).then(function(res){
     var rows=(res&&res.data)||[];
     var box=document.getElementById('assignList');
     if(!box)return;
-    if(!rows.length){box.innerHTML='<div class="aw-empty">'+AW.icon('modes')+'<p>Chưa có bài tập nào cho lớp này.</p></div>';return;}
+    if(!rows.length){
+      box.innerHTML='<div class="aw-empty">'+AW.icon('modes')+'<p>Chưa có bài tập '+(mode==='inclass'?'In-class':'Homework')+' nào.</p></div>';
+      return;
+    }
     box.innerHTML='<div class="aw-table-wrap"><table class="aw-table"><thead><tr>'+
-      '<th>Topic</th><th>Mode</th><th>Required</th><th>Deadline</th></tr></thead><tbody>'+
+      '<th>Topic</th><th>Class</th><th>Required</th><th>Deadline</th></tr></thead><tbody>'+
       rows.map(function(a){
-        return '<tr><td><b>'+AW.esc(a.topic)+'</b><br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc((a.prompt||'').slice(0,60))+'</span></td>'+
-          '<td><span class="aw-tag aw-tag-type">'+AW.esc(a.mode)+'</span></td>'+
-          '<td>'+(a.requiredAttempts||1)+'</td>'+
+        var plain=AW.stripHtml?AW.stripHtml(a.prompt||''):(a.prompt||'').replace(/<[^>]*>/g,'');
+        return '<tr><td><b>'+AW.esc(a.topic)+'</b><br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(plain.slice(0,80))+'</span></td>'+
+          '<td>'+AW.esc(a.class||curClass())+'</td>'+
+          '<td style="text-align:center">'+(a.requiredAttempts||1)+'</td>'+
           '<td>'+(a.deadline?AW.esc(a.deadline):'—')+'</td></tr>';
       }).join('')+'</tbody></table></div>';
   });

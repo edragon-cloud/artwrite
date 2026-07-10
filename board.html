@@ -15,7 +15,11 @@
   .aw-canvas-wrap{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);box-shadow:var(--aw-shadow);overflow:auto;padding:0}
   .aw-canvas{min-height:60vh;padding:40px 48px;font-size:16px;line-height:1.7;color:var(--aw-ink);outline:none;transform-origin:top left;transition:transform .15s}
   .aw-canvas:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
-  .aw-canvas img{max-width:100%;border-radius:8px;margin:6px 0}
+  .aw-canvas img{max-width:100%;border-radius:8px;margin:6px 0;cursor:pointer}
+  .aw-canvas img.selected{outline:2px solid var(--aw-primary);outline-offset:2px}
+  .aw-img-controls{position:fixed;z-index:60;display:none;gap:4px;background:var(--aw-primary-dk);border-radius:8px;padding:4px;box-shadow:var(--aw-shadow-lg)}
+  .aw-img-controls button{background:none;border:none;color:#fff;padding:5px 8px;font-size:.78rem;cursor:pointer;border-radius:5px}
+  .aw-img-controls button:hover{background:rgba(255,255,255,.15)}
   .aw-canvas[contenteditable="false"]{cursor:default}
   .aw-board-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
   .aw-board-title-in{font-family:var(--aw-font-display);font-size:1.3rem;font-weight:600;border:none;background:none;color:var(--aw-ink);outline:none;flex:1;min-width:180px}
@@ -30,6 +34,13 @@
 </head>
 <body>
 <div id="app"></div>
+
+<div class="aw-img-controls" id="imgCtrl">
+  <button id="imgSmaller">A▼ Smaller</button>
+  <button id="imgLarger">A▲ Larger</button>
+  <button id="imgFull">⇔ Full width</button>
+  <button id="imgRemove">✕ Remove</button>
+</div>
 
 <script src="aw-common.js"></script>
 <script>
@@ -262,7 +273,42 @@ function insertImg(url){
   document.execCommand('insertHTML',false,'<img src="'+url+'" alt="board image">');
 }
 
-/*──── autosave ────*/
+/*──── image resize & select (teacher only) ────*/
+var selectedImg=null;
+var imgCtrl=document.getElementById('imgCtrl');
+if(isTeacher){
+  document.addEventListener('click',function(e){
+    if(e.target.tagName==='IMG' && document.getElementById('canvas').contains(e.target)){
+      if(selectedImg) selectedImg.classList.remove('selected');
+      selectedImg=e.target; selectedImg.classList.add('selected');
+      imgCtrl.style.display='flex';
+      imgCtrl.style.top=(e.clientY+10)+'px';
+      imgCtrl.style.left=(e.clientX-80)+'px';
+    } else if(!imgCtrl.contains(e.target)){
+      if(selectedImg){selectedImg.classList.remove('selected');selectedImg=null;}
+      imgCtrl.style.display='none';
+    }
+  });
+  document.getElementById('imgSmaller').onclick=function(){
+    if(!selectedImg)return;
+    var w=selectedImg.width||selectedImg.offsetWidth||200;
+    selectedImg.style.width=Math.max(80,w*0.75)+'px';scheduleSave();
+  };
+  document.getElementById('imgLarger').onclick=function(){
+    if(!selectedImg)return;
+    var w=selectedImg.width||selectedImg.offsetWidth||200;
+    selectedImg.style.width=Math.min(1200,w*1.33)+'px';scheduleSave();
+  };
+  document.getElementById('imgFull').onclick=function(){
+    if(!selectedImg)return;
+    selectedImg.style.width='100%';scheduleSave();
+  };
+  document.getElementById('imgRemove').onclick=function(){
+    if(!selectedImg)return;
+    selectedImg.parentNode&&selectedImg.parentNode.removeChild(selectedImg);
+    selectedImg=null;imgCtrl.style.display='none';scheduleSave();
+  };
+}
 function scheduleSave(){
   var dot=document.getElementById('saveDot'); if(dot)dot.textContent='Saving…';
   clearTimeout(saveTimer); saveTimer=setTimeout(saveNow, 1500);

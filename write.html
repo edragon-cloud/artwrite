@@ -6,7 +6,7 @@
 <title>Write · ArticuWrite</title>
 <link rel="stylesheet" href="aw-theme.css">
 <style>
-  .aw-write-grid{display:grid;grid-template-columns:1fr 340px;gap:20px}
+  .aw-write-grid{display:grid;grid-template-columns:1fr 380px;gap:20px;align-items:start}
   @media(max-width:960px){.aw-write-grid{grid-template-columns:1fr}}
   .aw-prompt-box{background:var(--aw-surface-2);border:1px solid var(--aw-border);border-radius:var(--aw-r);padding:18px 20px;margin-bottom:16px}
   .aw-prompt-box h4{margin:0 0 6px;font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;color:var(--aw-primary);font-weight:700}
@@ -19,7 +19,7 @@
   .aw-editor:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
   .aw-write-meta{display:flex;align-items:center;gap:16px;margin:12px 0;font-size:.85rem;color:var(--aw-ink-2)}
   .aw-timer{margin-left:auto;font-weight:700;font-family:var(--aw-font-display);color:var(--aw-primary)}
-  .aw-side-panel{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:18px;box-shadow:var(--aw-shadow-sm);align-self:start}
+  .aw-side-panel{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:18px;box-shadow:var(--aw-shadow-sm);position:sticky;top:20px;max-height:calc(100vh - 100px);overflow-y:auto}
   .aw-side-panel h3{margin:0 0 14px;font-size:1rem}
   .aw-band{display:flex;align-items:center;gap:14px;margin-bottom:16px}
   .aw-band-circ{width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,var(--aw-primary),#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;flex:0 0 auto}
