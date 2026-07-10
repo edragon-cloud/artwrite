@@ -191,8 +191,8 @@ document.getElementById('gradeBtn').onclick = function(){
         studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
         startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
         duration:Math.round((Date.now()-startTime)/1000),
-        cc:result.scores.CC, ta:result.scores.TR, grammar:result.scores.GRA,
-        aiGrading:result.overall, teacherGrading:'', essay:text
+        tr:result.scores.TR, cc:result.scores.CC, lr:result.scores.LR, gra:result.scores.GRA,
+        aiGrading:result.overall, teacherGrading:'', essay:text, class:(sess.class||'')
       });
     })
     .then(function(saveRes){
@@ -213,9 +213,9 @@ if (submitBtn) submitBtn.onclick=function(){
     studentId:sess.studentId,name:sess.name,mode:MODE,topic:TOPIC,topicId:TOPIC_ID,
     startTime:startTime.toISOString(),finishTime:new Date().toISOString(),
     duration:Math.round((Date.now()-startTime)/1000),
-    cc:lastResult?lastResult.scores.CC:'',ta:lastResult?lastResult.scores.TR:'',
-    grammar:lastResult?lastResult.scores.GRA:'',aiGrading:lastResult?lastResult.overall:'',
-    teacherGrading:'',essay:text
+    tr:lastResult?lastResult.scores.TR:'',cc:lastResult?lastResult.scores.CC:'',
+    lr:lastResult?lastResult.scores.LR:'',gra:lastResult?lastResult.scores.GRA:'',
+    aiGrading:lastResult?lastResult.overall:'',teacherGrading:'',essay:text,class:(sess.class||'')
   }).then(function(res){
     if(res&&res.success){AW.toast('Đã nộp bài thành công!','ok');setTimeout(function(){location.href='student.html';},900);}
     else AW.toast((res&&res.error)||'Nộp thất bại','err');

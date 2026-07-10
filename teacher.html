@@ -53,6 +53,25 @@
   .aw-tabs{display:flex;gap:4px;border-bottom:2px solid var(--aw-border-2);margin-bottom:18px}
   .aw-tab{padding:10px 18px;border:none;background:none;font-family:var(--aw-font-body);font-weight:600;font-size:.92rem;color:var(--aw-ink-3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px}
   .aw-tab.active{color:var(--aw-primary);border-bottom-color:var(--aw-primary)}
+  /* assignment modal */
+  .aw-amodal{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:100%;max-width:640px;max-height:90vh;overflow-y:auto;box-shadow:var(--aw-shadow-lg);padding:30px}
+  .aw-amodal h2{font-family:var(--aw-font-display);margin:0 0 4px;font-size:1.4rem}
+  .aw-editor-mini-tb{display:flex;gap:2px;padding:6px 8px;border:1px solid var(--aw-border);border-bottom:none;border-radius:var(--aw-r-sm) var(--aw-r-sm) 0 0;background:var(--aw-surface-2)}
+  .aw-editor-mini-tb button{width:30px;height:30px;border:none;background:none;border-radius:6px;cursor:pointer;color:var(--aw-ink-2);font-weight:700}
+  .aw-editor-mini-tb button:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
+  .aw-prompt-edit{min-height:120px;border:1px solid var(--aw-border);border-radius:0 0 var(--aw-r-sm) var(--aw-r-sm);padding:12px 14px;font-family:var(--aw-font-body);font-size:.95rem;line-height:1.6;outline:none;overflow-y:auto}
+  .aw-prompt-edit:focus{border-color:var(--aw-primary)}
+  /* wide results table */
+  .aw-res-table{width:100%;border-collapse:collapse;font-size:.85rem;white-space:nowrap}
+  .aw-res-table th,.aw-res-table td{border:1px solid var(--aw-border-2);padding:8px 10px;text-align:center}
+  .aw-res-table thead tr:first-child th{background:var(--aw-primary);color:#fff;font-family:var(--aw-font-display);font-size:.8rem}
+  .aw-res-table thead tr:nth-child(2) th{background:var(--aw-surface-2);color:var(--aw-ink-2);font-size:.72rem;font-weight:600}
+  .aw-res-table td.sticky,.aw-res-table th.sticky{position:sticky;left:0;background:var(--aw-surface);z-index:2;text-align:left}
+  .aw-res-table tbody tr:hover td{background:var(--aw-surface-2)}
+  .aw-res-overall{font-weight:700;cursor:help;position:relative;display:inline-block;padding:2px 8px;border-radius:6px}
+  .aw-res-overall:hover .aw-res-pop{display:block}
+  .aw-res-pop{display:none;position:absolute;bottom:130%;left:50%;transform:translateX(-50%);background:var(--aw-primary-dk);color:#fff;padding:8px 12px;border-radius:8px;font-size:.75rem;font-weight:500;white-space:nowrap;z-index:10;box-shadow:var(--aw-shadow-lg)}
+  .aw-res-pop:after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--aw-primary-dk)}
 </style>
 </head>
 <body>
@@ -88,6 +107,37 @@
   <button id="popStrike">S̶ Strike</button>
   <button id="popHl">🖍 Highlight</button>
   <button id="popComment">💬 Comment</button>
+</div>
+
+<!-- assignment creation modal -->
+<div class="aw-modal-bg" id="assignModal">
+  <div class="aw-amodal">
+    <h2 id="assignTitle">New Homework</h2>
+    <p class="aw-auth-sub" style="margin:0 0 18px" id="assignSub">Giao bài cho lớp đang chọn.</p>
+    <div class="aw-field"><label class="aw-label">Topic / Title</label>
+      <input class="aw-input" id="aTopic" placeholder="VD: Day 1 — Advertising essay"></div>
+    <div class="aw-field"><label class="aw-label">Prompt / Instructions</label>
+      <div class="aw-editor-mini-tb">
+        <button type="button" data-c="bold"><b>B</b></button>
+        <button type="button" data-c="italic"><i>I</i></button>
+        <button type="button" data-c="underline"><u>U</u></button>
+        <button type="button" data-c="insertUnorderedList">•</button>
+      </div>
+      <div class="aw-prompt-edit" id="aPrompt" contenteditable="true" data-ph="Nhập đề bài, yêu cầu, tiêu chí… (xuống hàng & format thoải mái)"></div>
+    </div>
+    <div class="aw-row" style="display:flex;gap:12px">
+      <div class="aw-field" style="flex:1" id="reqField"><label class="aw-label">Required revisions</label>
+        <input class="aw-input" id="aReq" type="number" value="5" min="1"></div>
+      <div class="aw-field" style="flex:1" id="durField" style="display:none"><label class="aw-label">Duration (min)</label>
+        <input class="aw-input" id="aDur" type="number" value="40" min="5"></div>
+      <div class="aw-field" style="flex:1" id="deadField"><label class="aw-label">Deadline</label>
+        <input class="aw-input" id="aDead" type="date"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">
+      <button class="aw-btn aw-btn-ghost" id="aCancel">Cancel</button>
+      <button class="aw-btn aw-btn-primary" id="aCreate">Create & Assign</button>
+    </div>
+  </div>
 </div>
 
 <script src="aw-common.js"></script>
@@ -210,7 +260,7 @@ function showOverview(){
         kpi('Feedback Pending', d.feedbackPending) +
       '</div>' +
       '<div class="aw-two-col">' +
-        '<div class="aw-panel"><h3 style="margin:0 0 14px">Recent Submissions</h3><div id="recent"></div></div>' +
+        '<div class="aw-panel"><h3 style="margin:0 0 14px">Class Roster <span id="rosterCount" style="color:var(--aw-ink-3);font-weight:400;font-size:.85rem"></span></h3><div id="roster"></div></div>' +
         '<div class="aw-panel"><h3 style="margin:0 0 14px">Quick Actions</h3>' +
           '<button class="aw-btn aw-btn-primary aw-btn-block" style="margin-bottom:10px" onclick="document.querySelector(\'[data-nav=assignments]\').click()">+ New Assignment</button>' +
           '<button class="aw-btn aw-btn-ghost aw-btn-block" style="margin-bottom:10px" onclick="document.querySelector(\'[data-nav=live]\').click()">Go to Live Observation</button>' +
@@ -218,6 +268,7 @@ function showOverview(){
         '</div>' +
       '</div>';
     loadRecent();
+    loadRoster();
   });
 }
 function kpi(label,val){return '<div class="aw-kpi"><div class="aw-kpi-label">'+label+'</div><div class="aw-kpi-value">'+val+'</div></div>';}
@@ -227,10 +278,26 @@ function loadRecent(){
     var box=document.getElementById('recent');
     if(!box)return;
     if(!rows.length){box.innerHTML='<p style="color:var(--aw-ink-3);font-size:.88rem">No submissions yet.</p>';return;}
-    box.innerHTML=rows.slice(-6).reverse().map(function(r){
+    box.innerHTML=rows.slice(-6).reverse().map(function(g){
+      var last=g.writes[g.writes.length-1]||{};
       return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--aw-border-2);font-size:.88rem">'+
-        '<span>'+AW.esc(r.name||r.studentId)+' — '+AW.esc(r.topic||'')+'</span>'+
-        '<b class="'+AW.scoreClass(r.aiScore)+'">'+(r.aiScore||'—')+'</b></div>';
+        '<span>'+AW.esc(g.name||g.studentId)+' — '+AW.esc(g.topic||'')+'</span>'+
+        '<b class="'+AW.scoreClass(last.overall)+'">'+(last.overall||'—')+'</b></div>';
+    }).join('');
+  });
+}
+function loadRoster(){
+  AW.api('class.roster',{class:curClass()}).then(function(res){
+    var rows=(res&&res.data)||[];
+    var box=document.getElementById('roster');
+    var cnt=document.getElementById('rosterCount');
+    if(!box)return;
+    if(cnt)cnt.textContent='('+rows.length+' students)';
+    if(!rows.length){box.innerHTML='<p style="color:var(--aw-ink-3);font-size:.88rem">Chưa có sinh viên nào đăng ký lớp này. Chia sẻ mã lớp <b>'+AW.esc(curClass())+'</b> cho sinh viên.</p>';return;}
+    box.innerHTML=rows.map(function(s){
+      return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--aw-border-2);font-size:.88rem">'+
+        '<span><b>'+AW.esc(s.studentId)+'</b> · '+AW.esc(s.name||'')+'</span>'+
+        '<span style="color:var(--aw-ink-3)">'+AW.esc(s.email||'')+'</span></div>';
     }).join('');
   });
 }
@@ -417,6 +484,7 @@ document.getElementById('saveFb').onclick=function(){
 };
 
 /*═══════════ RESULTS ═══════════*/
+var resultsData=[], resultsSort={key:'name',dir:1};
 function showResults(){
   document.getElementById('awPageTitle').textContent='Results';
   content.innerHTML=
@@ -424,27 +492,82 @@ function showResults(){
       '<button class="aw-tab active" data-mode="free">Free Writing</button>' +
       '<button class="aw-tab" data-mode="inclass">In-Class Practice</button>' +
       '<button class="aw-tab" data-mode="homework">Homework</button>' +
-    '</div><div id="resultsBox"></div>';
+    '</div>' +
+    '<div class="aw-toolbar"><div class="aw-search">'+AW.icon('search')+
+      '<input id="resSearch" placeholder="Search student, ID, topic…"></div>'+
+      '<span id="resCount" style="color:var(--aw-ink-3);font-size:.85rem"></span></div>'+
+    '<div id="resultsBox"></div>';
   AW.els('.aw-tab').forEach(function(t){
     t.onclick=function(){AW.els('.aw-tab').forEach(function(x){x.classList.remove('active');});t.classList.add('active');loadResults(t.dataset.mode);};
   });
+  document.getElementById('resSearch').oninput=function(){ renderResults(this.value); };
   loadResults('free');
 }
 function loadResults(mode){
   var box=document.getElementById('resultsBox');
   box.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
   AW.api('teacher.getResults',{class:curClass(),mode:mode}).then(function(res){
-    var rows=(res&&res.data)||[];
-    if(!rows.length){box.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>No results in this mode yet.</p></div>';return;}
-    box.innerHTML='<div class="aw-table-wrap"><table class="aw-table"><thead><tr>'+
-      '<th>Student ID</th><th>Name</th><th>Topic</th><th>AI Score</th><th>Teacher Score</th><th>Attempt</th></tr></thead><tbody>'+
-      rows.map(function(r){
-        return '<tr><td>'+AW.esc(r.studentId)+'</td><td>'+AW.esc(r.name||'')+'</td>'+
-          '<td>'+AW.esc(r.topic||'')+'</td>'+
-          '<td class="aw-score '+AW.scoreClass(r.aiScore)+'">'+(r.aiScore||'—')+'</td>'+
-          '<td class="aw-score">'+(r.teacherScore||'—')+'</td>'+
-          '<td>'+(r.attempt||1)+'</td></tr>';
-      }).join('')+'</tbody></table></div>';
+    resultsData=(res&&res.data)||[];
+    renderResults('');
+  });
+}
+function scoreCell(w){
+  if(!w) return '<td>—</td>';
+  var o=w.overall||w.teacher||'—';
+  var pop='TR '+(w.tr||'—')+' · CC '+(w.cc||'—')+' · LR '+(w.lr||'—')+' · GRA '+(w.gra||'—');
+  return '<td><span class="aw-res-overall '+AW.scoreClass(o)+'">'+o+'<span class="aw-res-pop">'+pop+'</span></span></td>';
+}
+function timeCells(w){
+  if(!w) return '<td>—</td><td>—</td><td>—</td>';
+  function t(x){ if(!x)return '—'; var d=new Date(x); return isNaN(d)?x:(d.getHours()+':'+String(d.getMinutes()).padStart(2,'0')); }
+  function dur(s){ if(!s)return '—'; s=parseInt(s,10); if(isNaN(s))return '—'; var m=Math.floor(s/60); return m>=60?(Math.floor(m/60)+'h'+(m%60)+'m'):(m+'m'); }
+  return '<td>'+t(w.startTime)+'</td><td>'+t(w.finishTime)+'</td><td>'+dur(w.duration)+'</td>';
+}
+function renderResults(q){
+  var box=document.getElementById('resultsBox'); if(!box)return;
+  q=(q||'').toLowerCase();
+  var rows=resultsData.filter(function(g){
+    if(!q)return true;
+    return (g.name+' '+g.studentId+' '+g.topic+' '+g.class).toLowerCase().indexOf(q)>-1;
+  });
+  var cnt=document.getElementById('resCount'); if(cnt)cnt.textContent=rows.length+' rows';
+  if(!rows.length){box.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>No results in this mode yet.</p></div>';return;}
+  // sort
+  rows.sort(function(a,b){
+    var k=resultsSort.key, av=(a[k]||'').toString().toLowerCase(), bv=(b[k]||'').toString().toLowerCase();
+    return av<bv?-resultsSort.dir:av>bv?resultsSort.dir:0;
+  });
+  // header: First/Second/Third/Fourth/Last × (Start/Finish/Dur/Result)
+  var writeLabels=['First write','Second write','Third write','Fourth write','Last write'];
+  var top='<tr><th class="sticky" rowspan="2" data-sort="studentId">Student ID</th>'+
+    '<th rowspan="2" data-sort="name">Name</th><th rowspan="2" data-sort="class">Class</th>'+
+    '<th rowspan="2" data-sort="topic">Topic</th>';
+  writeLabels.forEach(function(l){ top+='<th colspan="4">'+l+'</th>'; });
+  top+='</tr><tr>';
+  writeLabels.forEach(function(){ top+='<th>Start</th><th>Finish</th><th>Dur</th><th>Result</th>'; });
+  top+='</tr>';
+
+  var body=rows.map(function(g){
+    var w=g.writes||[];
+    var picks=[ w[0], w[1], w[2], w[3], w.length>4?w[w.length-1]:(w.length===4?null:null) ];
+    // Last write = final one if >4 attempts; if exactly ≤4, last column shows the final attempt too when distinct
+    if(w.length>=1 && w.length<=4){ picks[4]=w[w.length-1]; }
+    var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+'</td>'+
+      '<td>'+AW.esc(g.class||'')+'</td><td style="text-align:left;white-space:normal;max-width:180px">'+AW.esc(g.topic||'')+'</td>';
+    picks.forEach(function(p){ tds+=timeCells(p)+scoreCell(p); });
+    return '<tr>'+tds+'</tr>';
+  }).join('');
+
+  box.innerHTML='<div class="aw-table-wrap" style="overflow-x:auto"><table class="aw-res-table"><thead>'+top+'</thead><tbody>'+body+'</tbody></table></div>';
+  // sortable headers
+  AW.els('[data-sort]').forEach(function(th){
+    th.style.cursor='pointer';
+    th.onclick=function(){
+      var k=th.dataset.sort;
+      resultsSort.dir = (resultsSort.key===k)? -resultsSort.dir : 1;
+      resultsSort.key=k;
+      renderResults(document.getElementById('resSearch').value);
+    };
   });
 }
 
@@ -475,20 +598,36 @@ function loadAssignmentList(){
       }).join('')+'</tbody></table></div>';
   });
 }
+var assignMode='homework';
 window.newAssignment=function(mode){
-  mode=mode||'homework';
-  var topic=prompt('Tên bài / chủ đề:'); if(!topic)return;
-  var promptText=prompt('Đề bài (IELTS Task 2 prompt):')||'';
-  var req=mode==='homework'?(prompt('Số lần viết bắt buộc:','5')||'1'):'1';
-  var dur=mode==='inclass'?(prompt('Thời gian làm bài (phút):','40')||''):'';
-  var deadline=mode==='homework'?(prompt('Deadline (VD: 2027-03-15):','')||''):'';
+  assignMode=mode||'homework';
+  document.getElementById('assignTitle').textContent = assignMode==='homework'?'New Homework':'New In-class Task';
+  document.getElementById('aTopic').value='';
+  document.getElementById('aPrompt').innerHTML='';
+  document.getElementById('reqField').style.display = assignMode==='homework'?'':'none';
+  document.getElementById('durField').style.display = assignMode==='inclass'?'':'none';
+  document.getElementById('deadField').style.display = assignMode==='homework'?'':'none';
+  document.getElementById('assignModal').classList.add('show');
+};
+// mini toolbar
+AW.els('.aw-editor-mini-tb button').forEach(function(b){
+  b.onclick=function(){ document.execCommand(b.dataset.c,false,null); document.getElementById('aPrompt').focus(); };
+});
+document.getElementById('aCancel').onclick=function(){ document.getElementById('assignModal').classList.remove('show'); };
+document.getElementById('aCreate').onclick=function(){
+  var topic=document.getElementById('aTopic').value.trim();
+  var promptHtml=document.getElementById('aPrompt').innerHTML.trim();
+  if(!topic){AW.toast('Nhập tên bài.','err');return;}
+  var btn=this; btn.disabled=true; var o=btn.textContent; btn.innerHTML='<span class="aw-spin"></span>';
   AW.api('teacher.createAssignment',{
-    class:curClass(),mode:mode,topic:topic,prompt:promptText,
-    requiredAttempts:parseInt(req,10),durationMin:dur?parseInt(dur,10):'',deadline:deadline
+    class:curClass(), mode:assignMode, topic:topic, prompt:promptHtml,
+    requiredAttempts:assignMode==='homework'?parseInt(document.getElementById('aReq').value||'1',10):1,
+    durationMin:assignMode==='inclass'?parseInt(document.getElementById('aDur').value||'0',10):'',
+    deadline:assignMode==='homework'?document.getElementById('aDead').value:''
   }).then(function(res){
-    if(res&&res.success){AW.toast('Đã tạo & giao bài cho lớp','ok');showAssignments();}
+    if(res&&res.success){AW.toast('Đã tạo & giao bài','ok');document.getElementById('assignModal').classList.remove('show');showAssignments();}
     else AW.toast('Tạo thất bại','err');
-  });
+  }).finally(function(){ btn.disabled=false; btn.textContent=o; });
 };
 
 /*═══════════ SETTINGS ═══════════*/

@@ -159,6 +159,8 @@ function buildToolbar(){
     '<span class="aw-tsep"></span>' +
     '<input type="color" class="aw-tcolor" id="txtColor" title="Text color" value="#0A6EBD">' +
     '<button class="aw-tbtn" data-hl title="Highlight">🖍</button>' +
+    '<button class="aw-tbtn" data-hloff title="Remove highlight">🚫🖍</button>' +
+    '<button class="aw-tbtn" data-clear title="Clear formatting">✕ Format</button>' +
     '<span class="aw-tsep"></span>' +
     tb('insertUnorderedList','• List')+tb('justifyLeft','⇤')+tb('justifyCenter','⇔')+
     '<span class="aw-tsep"></span>' +
@@ -189,6 +191,16 @@ function wireToolbar(){
   AW.el('[data-hl]').onclick=function(){
     document.execCommand('hiliteColor',false,'#FFF1A8')||document.execCommand('backColor',false,'#FFF1A8');
     scheduleSave();
+  };
+  AW.el('[data-hloff]').onclick=function(){
+    // remove highlight by setting background to transparent/white
+    document.execCommand('hiliteColor',false,'transparent')||document.execCommand('backColor',false,'transparent');
+    canvas.focus(); scheduleSave();
+  };
+  AW.el('[data-clear]').onclick=function(){
+    document.execCommand('removeFormat',false,null);
+    document.execCommand('hiliteColor',false,'transparent');
+    canvas.focus(); scheduleSave();
   };
   AW.els('[data-zoom]').forEach(function(b){
     b.onclick=function(){ zoom=Math.max(.5,Math.min(2, zoom+(b.dataset.zoom==='in'?.1:-.1)));
