@@ -77,6 +77,10 @@
   .aw-res-table td.sticky,.aw-res-table th.sticky{position:sticky;left:0;background:#fff;z-index:2;text-align:left}
   .aw-res-table thead th.sticky{background:linear-gradient(135deg,#0A6EBD,#1A5F9E)}
   .aw-res-table tbody tr:hover td{filter:brightness(.98)}
+  .ms-in{width:100%;padding:3px 2px;border:1px solid var(--aw-border);border-radius:4px;text-align:center;font-size:.72rem}
+  .ms-in:focus{border-color:var(--aw-primary);outline:none}
+  .ms-note{padding:3px 6px;border:1px solid var(--aw-border);border-radius:4px;font-size:.72rem}
+  .ms-note:focus{border-color:var(--aw-primary);outline:none}
   .aw-view-hd{background:#EA4B5E;color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:.7rem;font-weight:700;cursor:pointer;letter-spacing:.02em}
   .aw-view-hd:hover{background:#d13a4c}
   .aw-res-table td{position:relative}
@@ -573,9 +577,9 @@ function showResults(){
   document.getElementById('awPageTitle').textContent='Results';
   content.innerHTML=
     '<div class="aw-tabs">' +
-      '<button class="aw-tab active" data-mode="free">Free Writing</button>' +
-      '<button class="aw-tab" data-mode="inclass">In-Class Practice</button>' +
+      '<button class="aw-tab active" data-mode="inclass">In-Class Practice</button>' +
       '<button class="aw-tab" data-mode="homework">Homework</button>' +
+      '<button class="aw-tab" data-mode="free">Free Writing</button>' +
     '</div>' +
     '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">'+
       '<select class="aw-select" id="fClass"><option value="">All classes</option></select>'+
@@ -588,6 +592,7 @@ function showResults(){
         '<option value="attemptCount">Sort: Attempts</option>'+
       '</select>'+
       '<button class="aw-btn aw-btn-ghost" id="clearFilters" style="padding:8px 14px">Clear</button>'+
+      '<button class="aw-btn aw-btn-accent" id="exportResults" style="padding:8px 14px">⤓ Export to Sheet</button>'+
       '<span id="resCount" style="color:var(--aw-ink-3);font-size:.85rem"></span>'+
     '</div>'+
     '<div id="resultsBox"></div>';
@@ -604,7 +609,16 @@ function showResults(){
     document.getElementById('fTopic').value='';
     renderResults();
   };
-  loadResults('free');
+  document.getElementById('exportResults').onclick=function(){
+    var mode=document.querySelector('.aw-tab.active').dataset.mode;
+    var btn=this; btn.disabled=true; var o=btn.textContent; btn.textContent='Exporting…';
+    AW.toast('Creating Google Sheet…');
+    AW.api('teacher.exportResults',{mode:mode,class:curClass()}).then(function(res){
+      if(res&&res.success){ AW.toast('Sheet ready! ('+res.data.rows+' rows)','ok'); window.open(res.data.url,'_blank'); }
+      else AW.toast((res&&res.error)||'Export failed','err',4000);
+    }).finally(function(){ btn.disabled=false; btn.textContent=o; });
+  };
+  loadResults('inclass');
 }
 function loadResults(mode){
   var box=document.getElementById('resultsBox');
@@ -673,10 +687,21 @@ function renderResults(){
     var bestVal=best?best.overall:'—';
     var improve=(vals.length>=2)?(vals[vals.length-1]-vals[0]).toFixed(1):null;
     var impBadge=improve!==null?(parseFloat(improve)>=0?'<span style="color:var(--aw-writing)">▲ +'+improve+'</span>':'<span style="color:var(--aw-danger)">▼ '+improve+'</span>'):'';
-    var attemptsCell='<div style="font-size:.8rem;line-height:1.6" class="grp-best">'+
-      '<div><b>'+w.length+'/3</b> attempts</div>'+
-      '<div>Best: <b style="color:var(--aw-primary)">'+bestVal+'</b></div>'+
-      '<div>Avg: '+avg+'</div>'+(impBadge?'<div>'+impBadge+'</div>':'')+'</div>';
+    var ts = g.teacherScore || {};
+    var attemptsCell='<div style="font-size:.78rem;line-height:1.5;min-width:170px" class="grp-best">'+
+      '<div style="margin-bottom:6px"><b>'+w.length+'/3</b> attempts · AI best <b style="color:var(--aw-primary)">'+bestVal+'</b></div>'+
+      '<div style="font-weight:600;margin-bottom:3px;color:var(--aw-ink-2)">Teacher scoring:</div>'+
+      '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-bottom:4px">'+
+        '<input class="ms-in" data-f="tr" placeholder="TR" value="'+AW.esc(ts.tr||'')+'" title="Task Response">'+
+        '<input class="ms-in" data-f="cc" placeholder="CC" value="'+AW.esc(ts.cc||'')+'" title="Coherence">'+
+        '<input class="ms-in" data-f="lr" placeholder="LR" value="'+AW.esc(ts.lr||'')+'" title="Lexical">'+
+        '<input class="ms-in" data-f="gra" placeholder="GR" value="'+AW.esc(ts.gra||'')+'" title="Grammar">'+
+        '<input class="ms-in" data-f="overall" placeholder="OA" value="'+AW.esc(ts.overall||'')+'" title="Overall" style="font-weight:700">'+
+      '</div>'+
+      '<input class="ms-note" data-f="note" placeholder="Note…" value="'+AW.esc(ts.note||'')+'" style="width:100%;margin-bottom:4px">'+
+      '<button class="ms-save aw-btn aw-btn-primary" style="padding:4px 10px;font-size:.72rem;width:100%" data-gi="'+gi+'">Save score</button>'+
+      (ts.gradedAt?'<div style="font-size:.65rem;color:var(--aw-ink-3);margin-top:2px">✓ Graded</div>':'')+
+    '</div>';
     var topicCell='<td style="text-align:left;white-space:normal;max-width:170px"><b>'+AW.esc(g.topic||'')+'</b></td>';
     var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+'</td>'+
       '<td>'+AW.esc(g.className||g.class||'')+'</td>'+topicCell;
@@ -696,6 +721,21 @@ function renderResults(){
     cell.style.cursor='pointer';
     cell.title='Click to view this attempt';
     cell.onclick=function(){ viewEssays(+cell.dataset.openGi, +cell.dataset.openWi); };
+  });
+  // manual score save
+  AW.els('.ms-save').forEach(function(btn){
+    btn.onclick=function(){
+      var gi=+btn.dataset.gi, g=resultsData[gi]; if(!g)return;
+      var cell=btn.closest('.grp-best');
+      var payload={ studentId:g.studentId, topicId:g.topicId,
+        mode:document.querySelector('.aw-tab.active').dataset.mode };
+      cell.querySelectorAll('[data-f]').forEach(function(inp){ payload[inp.dataset.f]=inp.value.trim(); });
+      btn.disabled=true; var o=btn.textContent; btn.textContent='Saving…';
+      AW.api('teacher.saveManualScore',payload).then(function(res){
+        if(res&&res.success){ AW.toast('Score saved','ok'); g.teacherScore=payload; }
+        else AW.toast((res&&res.error)||'Save failed','err');
+      }).finally(function(){ btn.disabled=false; btn.textContent=o; });
+    };
   });
 }
 // view essays + feedback. writeIdx: specific attempt index, or -1/undefined = all

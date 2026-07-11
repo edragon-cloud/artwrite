@@ -189,14 +189,17 @@
     document.getElementById(opts.mount || 'app').innerHTML = html;
     document.getElementById('awLogout').onclick = function () { AW.session.logout(); };
     var menuBtn = document.getElementById('awMenuBtn');
-    if (menuBtn) menuBtn.onclick = function () { document.getElementById('awSide').classList.toggle('open'); };
-    // close sidebar when clicking outside on mobile
+    if (menuBtn) menuBtn.onclick = function (e) {
+      e.stopPropagation();  // prevent the outside-click listener from immediately closing it
+      document.getElementById('awSide').classList.toggle('open');
+    };
+    // close sidebar when clicking outside on mobile (only when actually open)
     document.addEventListener('click', function(e){
       var side = document.getElementById('awSide');
-      var btn = document.getElementById('awMenuBtn');
-      if (side && side.classList.contains('open') && !side.contains(e.target) && e.target !== btn) {
-        side.classList.remove('open');
-      }
+      if (!side || !side.classList.contains('open')) return;
+      if (side.contains(e.target)) return;               // click inside sidebar
+      if (menuBtn && menuBtn.contains(e.target)) return; // click on the button itself
+      side.classList.remove('open');
     });
     AW.els('[data-nav]').forEach(function (a) {
       a.onclick = function () { if (opts.onNav) opts.onNav(a.getAttribute('data-nav'), a); };

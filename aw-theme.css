@@ -154,6 +154,7 @@ h1,h2,h3,h4,.aw-display{font-family:var(--aw-font-display);letter-spacing:-.01em
 .aw-nav-group{font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--aw-ink-3);margin:14px 12px 6px}
 .aw-nav{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:var(--aw-r-sm);color:var(--aw-ink-2);
   text-decoration:none;font-weight:500;font-size:.92rem;cursor:pointer;transition:background .14s,color .14s;border:none;background:none;width:100%;text-align:left;font-family:var(--aw-font-body)}
+.aw-nav span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
 .aw-nav:hover{background:var(--aw-surface-2);color:var(--aw-ink)}
 .aw-nav.active{background:var(--aw-primary-lt);color:var(--aw-primary);font-weight:600}
 .aw-nav svg{width:19px;height:19px;flex:0 0 auto}
