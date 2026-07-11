@@ -73,6 +73,14 @@ var content = AW.renderShell({
 
 var curBoard=null, zoom=1, saveTimer=null, pollTimer=null;
 
+/*──── resolve which class this board belongs to ────*/
+// Teacher: use the class selected in the dashboard (localStorage 'aw_teacher_class')
+// Student: use their own class from session
+function myBoardClass(){
+  if (isTeacher) return localStorage.getItem('aw_teacher_class') || sess.class || '';
+  return sess.class || '';
+}
+
 /*──── board list ────*/
 function showList(){
   stopPoll();
@@ -81,7 +89,7 @@ function showList(){
     (isTeacher ? '<button class="aw-btn aw-btn-primary" id="newBoard" style="margin-bottom:18px">+ New Board</button>' : '') +
     '<div id="boardGrid" class="aw-grid"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div>';
   if (isTeacher) document.getElementById('newBoard').onclick=createBoard;
-  AW.api('board.list',{class:sess.class}).then(function(res){
+  AW.api('board.list',{class:myBoardClass()}).then(function(res){
     var rows=(res&&res.data)||[];
     var grid=document.getElementById('boardGrid');
     if(!rows.length){grid.innerHTML='<div class="aw-empty">'+AW.icon('modes')+'<p>'+(isTeacher?'Chưa có bảng nào. Bấm “+ New Board”.':'Chưa có bảng nào cho lớp bạn.')+'</p></div>';return;}
@@ -105,7 +113,7 @@ function showList(){
 
 function createBoard(){
   var title=prompt('Tên bảng:','Class Board'); if(!title)return;
-  AW.api('board.create',{class:sess.class,title:title,owner:sess.name||sess.email}).then(function(res){
+  AW.api('board.create',{class:myBoardClass(),title:title,owner:sess.name||sess.email}).then(function(res){
     if(res&&res.success){ AW.toast('Đã tạo bảng','ok'); openBoard(res.data.boardId); }
     else AW.toast('Tạo thất bại','err');
   });

@@ -81,16 +81,20 @@ function modeCard(mode,ic,title,desc,cls){
 }
 
 function loadHistory(){
-  AW.api('write.getHistory',{studentId:sess.studentId}).then(function(res){
-    var box=document.getElementById('hist');
-    if(!res||!res.success||!res.data.length){
-      box.innerHTML='<div class="aw-empty">'+AW.icon('progress')+'<p>No practice yet. Pick a mode above to start.</p></div>';
+  var box=document.getElementById('hist');
+  if(!box) return;  // #hist only exists on the Modes view
+  AW.api('write.getMyResults',{studentId:sess.studentId}).then(function(res){
+    var box2=document.getElementById('hist');
+    if(!box2)return;
+    if(!res||!res.success||!res.data||!res.data.length){
+      box2.innerHTML='<div class="aw-empty">'+AW.icon('progress')+'<p>No practice yet. Pick a mode above to start.</p></div>';
       return;
     }
-    box.innerHTML=res.data.slice(0,8).map(function(h){
+    box2.innerHTML=res.data.slice(0,8).map(function(h){
+      var band=h.overall||h.teacher||'—';
       return '<div class="aw-hist"><div class="aw-hist-main">' +
         '<div class="aw-hist-topic">'+AW.esc(h.topic||'Untitled')+'</div>' +
-        '<div class="aw-hist-meta">'+AW.esc(h.mode)+' · '+new Date(h.timestamp).toLocaleDateString()+'</div>' +
+        '<div class="aw-hist-meta">'+AW.esc(h.mode)+' · Band '+AW.esc(String(band))+' · '+(h.timestamp?new Date(h.timestamp).toLocaleDateString():'')+'</div>' +
         '</div><button class="aw-btn aw-btn-ghost" style="padding:7px 16px" data-tid="'+AW.esc(h.topicId)+'" data-topic="'+AW.esc(h.topic)+'" data-mode="'+AW.esc(h.mode)+'">Re-try</button></div>';
     }).join('');
     AW.els('[data-tid]').forEach(function(b){
