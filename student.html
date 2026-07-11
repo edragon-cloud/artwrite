@@ -165,7 +165,7 @@ function showProgress(){
         '<td style="text-align:center">'+dur+'</td>'+
         '<td style="font-size:.8rem;color:var(--aw-ink-3)">'+date+'</td>'+
         '<td style="white-space:nowrap">'+
-          (r.feedback?'<button class="aw-btn aw-btn-primary" style="padding:5px 12px;font-size:.8rem;margin-right:4px" onclick="reviewFeedback('+i+')">Review</button>':'')+
+          '<button class="aw-btn aw-btn-primary" style="padding:5px 12px;font-size:.8rem;margin-right:4px" onclick="reviewFeedback('+i+')">View</button>'+
           '<button class="aw-btn aw-btn-ghost" style="padding:5px 12px;font-size:.8rem" onclick="retryFromProgress(\''+AW.esc(r.mode)+'\',\''+AW.esc(r.topicId)+'\',\''+AW.esc(r.topic)+'\')">Re-try</button>'+
         '</td>'+
       '</tr>';
@@ -182,15 +182,35 @@ window.retryFromProgress=function(mode,topicId,topic){
   location.href='write.html?mode='+encodeURIComponent(mode)+'&retry=1&topicId='+encodeURIComponent(topicId)+'&topic='+encodeURIComponent(topic);
 };
 window.reviewFeedback=function(i){
-  var r=(window._myResults||[])[i]; if(!r||!r.feedback)return;
-  var fb; try{ fb=JSON.parse(r.feedback); }catch(e){ AW.toast('Could not read feedback','err'); return; }
+  var r=(window._myResults||[])[i]; if(!r)return;
+  var fb=null;
+  if(r.feedback){ try{ fb=JSON.parse(r.feedback); }catch(e){ fb=null; } }
+  // if no stored feedback (older submission), show essay + scores only
+  if(!fb){
+    var bodyNoFb='<div id="reviewContent">'+
+      '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">'+
+        '<div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#0A6EBD,#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff"><b style="font-size:1.5rem">'+(r.overall||'—')+'</b><span style="font-size:.5rem">BAND</span></div>'+
+        '<div><b>'+AW.esc(r.topic||'')+'</b><p style="margin:2px 0 0;font-size:.82rem;color:#667">TR '+(r.tr||'—')+' · CC '+(r.cc||'—')+' · LR '+(r.lr||'—')+' · GRA '+(r.gra||'—')+'</p></div>'+
+      '</div>'+
+      '<div class="rv-block" style="background:#FFF8EC"><p style="margin:0">This submission was made before detailed feedback storage was enabled, so only the score and essay are available. New submissions will show full feedback here.</p></div>'+
+      (r.essay?'<div class="rv-block"><h4>Your essay</h4><div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;color:#334">'+AW.esc(r.essay)+'</div></div>':'<div class="rv-block"><p style="color:#889">No essay text stored.</p></div>')+
+    '</div>';
+    document.getElementById('reviewModalBody').innerHTML=
+      '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'+
+        '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.3rem">Submission Review</h2>'+
+        '<div><button class="aw-btn aw-btn-ghost" style="padding:6px 14px;margin-right:6px" onclick="exportReviewPDF()">⤓ Print/PDF</button>'+
+        '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="closeReview()">Close</button></div>'+
+      '</div>'+bodyNoFb;
+    document.getElementById('reviewModal').classList.add('show');
+    return;
+  }
   var s=fb.scores||{};
   function crit(name,val){var pct=val?Math.min(100,(parseFloat(val)/9)*100):0;
     return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.85rem"><span>'+name+'</span><b>'+(val||'—')+'</b></div><div style="height:6px;background:#E5E9EE;border-radius:4px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#0A6EBD,#0A93BD);border-radius:4px"></div></div></div>';}
   var body='<div id="reviewContent">'+
     '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">'+
       '<div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#0A6EBD,#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff"><b style="font-size:1.5rem">'+(fb.overall||'—')+'</b><span style="font-size:.5rem">BAND</span></div>'+
-      '<div><b>'+AW.esc(fb.band_description||'')+'</b><p style="margin:2px 0 0;font-size:.82rem;color:#667">'+AW.esc(r.topic||'')+'</p></div>'+
+      '<div><b>'+AW.esc(fb.band_description||'')+'</b><p style="margin:2px 0 0;font-size:.82rem;color:#667">'+AW.esc(r.topic||'')+' · Attempt '+(r.attempt||1)+'</p></div>'+
     '</div>'+
     crit('Task Response',s.TR)+crit('Coherence & Cohesion',s.CC)+crit('Lexical Resource',s.LR)+crit('Grammar',s.GRA)+
     (fb.overall_feedback_vi?'<div class="rv-block"><h4>Overall assessment</h4><p>'+AW.esc(fb.overall_feedback_vi)+'</p></div>':'')+

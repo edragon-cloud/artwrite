@@ -77,11 +77,16 @@
   .aw-res-table td.sticky,.aw-res-table th.sticky{position:sticky;left:0;background:#fff;z-index:2;text-align:left}
   .aw-res-table thead th.sticky{background:linear-gradient(135deg,#0A6EBD,#1A5F9E)}
   .aw-res-table tbody tr:hover td{filter:brightness(.98)}
-  .aw-res-overall{font-weight:800;cursor:help;position:relative;display:inline-block;padding:6px 12px;border-radius:10px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:1rem}
+  .aw-view-hd{background:#EA4B5E;color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:.7rem;font-weight:700;cursor:pointer;letter-spacing:.02em}
+  .aw-view-hd:hover{background:#d13a4c}
+  .aw-res-table td{position:relative}
+  .aw-res-table td:hover{z-index:200}
+  .aw-res-overall{font-weight:800;cursor:pointer;position:relative;display:inline-block;padding:6px 12px;border-radius:10px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:1rem}
   .aw-res-overall small{display:block;font-size:.6rem;color:var(--aw-ink-3);font-weight:600}
+  .aw-res-overall:hover{box-shadow:0 2px 10px rgba(10,110,189,.3)}
   .aw-res-overall:hover .aw-res-pop{display:block}
-  .aw-res-pop{display:none;position:absolute;bottom:130%;left:50%;transform:translateX(-50%);background:var(--aw-primary-dk);color:#fff;padding:8px 12px;border-radius:8px;font-size:.75rem;font-weight:500;white-space:nowrap;z-index:10;box-shadow:var(--aw-shadow-lg)}
-  .aw-res-pop:after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--aw-primary-dk)}
+  .aw-res-pop{display:none;position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--aw-primary-dk);color:#fff;padding:8px 12px;border-radius:8px;font-size:.72rem;font-weight:500;white-space:nowrap;z-index:500;box-shadow:var(--aw-shadow-lg);pointer-events:none}
+  .aw-res-pop:after{content:'';position:absolute;bottom:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-bottom-color:var(--aw-primary-dk)}
   .aw-view-btn{background:var(--aw-primary-lt);color:var(--aw-primary);border:none;border-radius:8px;padding:5px 10px;font-size:.75rem;font-weight:600;cursor:pointer}
   .aw-view-btn:hover{background:var(--aw-primary);color:#fff}
   .aw-essay-bg{position:fixed;inset:0;background:rgba(16,34,46,.55);z-index:600;display:none;align-items:flex-start;justify-content:center;padding:30px 20px;overflow-y:auto}
@@ -614,11 +619,12 @@ function loadResults(mode){
     renderResults();
   });
 }
-function scoreCell(w,grpClass){
+function scoreCell(w,grpClass,gi,writeIdx){
   if(!w) return '<td class="'+(grpClass||'')+'">—</td>';
   var o=w.overall||w.teacher||'—';
   var pop='TR '+(w.tr||'—')+' · CC '+(w.cc||'—')+' · LR '+(w.lr||'—')+' · GRA '+(w.gra||'—');
-  return '<td class="'+(grpClass||'')+'"><span class="aw-res-overall">'+o+'<small>/9</small><span class="aw-res-pop">'+pop+'</span></span></td>';
+  var clickAttr = (gi!=null && writeIdx!=null) ? ' data-open-gi="'+gi+'" data-open-wi="'+writeIdx+'"' : '';
+  return '<td class="'+(grpClass||'')+'"><span class="aw-res-overall"'+clickAttr+'>'+o+'<small>/9</small><span class="aw-res-pop">'+pop+'</span></span></td>';
 }
 function timeCells(w,grpClass){
   var cl=grpClass||'';
@@ -646,18 +652,20 @@ function renderResults(){
     var av=(a[k]||'').toString().toLowerCase(), bv=(b[k]||'').toString().toLowerCase();
     return av<bv?-1:av>bv?1:0;
   });
-  var writeLabels=[['First Write','grp-1','hd-1'],['Second Write','grp-2','hd-2'],['Third Write','grp-3','hd-3'],['★ Best Write','grp-best','hd-best']];
+  var writeLabels=[['First Write','grp-1','hd-1',0],['Second Write','grp-2','hd-2',1],['Third Write','grp-3','hd-3',2],['★ Best Write','grp-best','hd-best','best']];
   var top='<tr><th class="sticky" rowspan="2">Student ID</th>'+
     '<th rowspan="2">Name</th><th rowspan="2">Class</th><th rowspan="2">Topic</th>';
-  writeLabels.forEach(function(l){ top+='<th colspan="4" class="'+l[2]+'">'+l[0]+'</th>'; });
+  writeLabels.forEach(function(l){
+    top+='<th colspan="4" class="'+l[2]+'">'+l[0]+'</th>';
+  });
   top+='<th rowspan="2" class="hd-best">Attempts</th></tr><tr>';
   writeLabels.forEach(function(l){ top+='<th class="'+l[1]+'">Start</th><th class="'+l[1]+'">Finish</th><th class="'+l[1]+'">Dur</th><th class="'+l[1]+'">Result</th>'; });
   top+='</tr>';
 
   var body=rows.map(function(g,gi){
     var w=g.writes||[];
-    var best=null;
-    w.forEach(function(x){var v=parseFloat(x.overall);if(!isNaN(v)&&(best===null||v>parseFloat(best.overall)))best=x;});
+    var best=null,bestI=-1;
+    w.forEach(function(x,xi){var v=parseFloat(x.overall);if(!isNaN(v)&&(best===null||v>parseFloat(best.overall))){best=x;bestI=xi;}});
     var groups=['grp-1','grp-2','grp-3','grp-best'];
     var picks=[ w[0], w[1], w[2], best ];
     var vals=w.map(function(x){return parseFloat(x.overall);}).filter(function(v){return !isNaN(v);});
@@ -669,37 +677,57 @@ function renderResults(){
       '<div><b>'+w.length+'/3</b> attempts</div>'+
       '<div>Best: <b style="color:var(--aw-primary)">'+bestVal+'</b></div>'+
       '<div>Avg: '+avg+'</div>'+(impBadge?'<div>'+impBadge+'</div>':'')+'</div>';
-    var topicCell='<td style="text-align:left;white-space:normal;max-width:170px"><b>'+AW.esc(g.topic||'')+'</b>'+
-      (w.length?'<br><button class="aw-view-btn" onclick="viewEssays('+gi+')">📄 View essays</button>':'')+'</td>';
+    var topicCell='<td style="text-align:left;white-space:normal;max-width:170px"><b>'+AW.esc(g.topic||'')+'</b></td>';
     var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+'</td>'+
       '<td>'+AW.esc(g.className||g.class||'')+'</td>'+topicCell;
-    picks.forEach(function(p,pi){ tds+=timeCells(p,groups[pi])+scoreCell(p,groups[pi]); });
+    picks.forEach(function(p,pi){
+      // map pick index to actual write index (best uses bestI)
+      var realIdx = (pi<3) ? pi : bestI;
+      tds+=timeCells(p,groups[pi])+scoreCell(p,groups[pi],gi,realIdx);
+    });
     tds+='<td class="grp-best">'+attemptsCell+'</td>';
-    return '<tr data-gi="'+gi+'">'+tds+'</tr>';
+    return '<tr data-gi="'+gi+'" data-besti="'+bestI+'">'+tds+'</tr>';
   }).join('');
 
-  box.innerHTML='<div class="aw-res-wrap" style="overflow-x:auto"><table class="aw-res-table"><thead>'+top+'</thead><tbody>'+body+'</tbody></table></div>';
+  box.innerHTML='<p style="font-size:.82rem;color:var(--aw-ink-3);margin:0 0 10px">💡 Click any <b>Result</b> score to view that attempt\'s full essay and feedback.</p>'+
+    '<div class="aw-res-wrap" style="overflow-x:auto"><table class="aw-res-table"><thead>'+top+'</thead><tbody>'+body+'</tbody></table></div>';
+  // click a Result score to view that attempt's essay + feedback
+  AW.els('[data-open-gi]').forEach(function(cell){
+    cell.style.cursor='pointer';
+    cell.title='Click to view this attempt';
+    cell.onclick=function(){ viewEssays(+cell.dataset.openGi, +cell.dataset.openWi); };
+  });
 }
-// view all essays + feedback for one student-topic group
-window.viewEssays=function(gi){
+// view essays + feedback. writeIdx: specific attempt index, or -1/undefined = all
+window.viewEssays=function(gi, writeIdx){
   var g=resultsData[gi]; if(!g)return;
   var w=g.writes||[];
-  var body='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'+
+  var showList = (writeIdx==null || writeIdx<0) ? w.map(function(x,i){return {x:x,i:i};})
+                                                : (w[writeIdx]?[{x:w[writeIdx],i:writeIdx}]:[]);
+  var header='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'+
     '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.25rem">'+AW.esc(g.name||g.studentId)+' — '+AW.esc(g.topic||'')+'</h2>'+
     '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="closeEssayModal()">Close</button></div>';
-  body+=w.map(function(x,i){
-    var fb=null; try{ fb=x.feedback?JSON.parse(x.feedback):null; }catch(e){}
-    var head='<div class="rv-block"><h4>Attempt '+(i+1)+' — Band '+(x.overall||'—')+' '+
-      '(TR '+(x.tr||'—')+' · CC '+(x.cc||'—')+' · LR '+(x.lr||'—')+' · GRA '+(x.gra||'—')+')</h4>';
-    var essay=x.essay?'<div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;background:var(--aw-surface-2);padding:12px;border-radius:8px">'+AW.esc(x.essay)+'</div>':'<p style="color:var(--aw-ink-3)">No essay text.</p>';
-    var fbHtml='';
-    if(fb){
-      if(fb.overall_feedback_vi) fbHtml+='<p style="margin-top:8px"><b>Overall:</b> '+AW.esc(fb.overall_feedback_vi)+'</p>';
-      if((fb.gra_errors||[]).length) fbHtml+='<p><b>Grammar:</b> '+fb.gra_errors.slice(0,5).map(function(e){return AW.esc(e.wrong)+'→'+AW.esc(e.correct);}).join('; ')+'</p>';
-    }
-    return head+essay+fbHtml+'</div>';
-  }).join('');
-  document.getElementById('essayModalBody').innerHTML=body;
+  var body;
+  if(!showList.length){
+    body='<div class="aw-empty" style="padding:40px 20px">'+AW.icon('results')+'<p>Sinh viên chưa làm lần viết này.<br>Student has not completed this attempt yet.</p></div>';
+  } else {
+    body=showList.map(function(item){
+      var x=item.x, i=item.i;
+      var fb=null; try{ fb=x.feedback?JSON.parse(x.feedback):null; }catch(e){}
+      var head='<div class="rv-block"><h4>Attempt '+(i+1)+' — Band '+(x.overall||'—')+' '+
+        '(TR '+(x.tr||'—')+' · CC '+(x.cc||'—')+' · LR '+(x.lr||'—')+' · GRA '+(x.gra||'—')+')</h4>';
+      var essay=x.essay?'<div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;background:var(--aw-surface-2);padding:12px;border-radius:8px;margin-bottom:8px">'+AW.esc(x.essay)+'</div>':'<p style="color:var(--aw-ink-3)">No essay text.</p>';
+      var fbHtml='';
+      if(fb){
+        if(fb.overall_feedback_vi) fbHtml+='<p><b>Overall:</b> '+AW.esc(fb.overall_feedback_vi)+'</p>';
+        if((fb.gra_errors||[]).length) fbHtml+='<p><b>Grammar:</b> '+fb.gra_errors.slice(0,6).map(function(e){return '<span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.wrong)+'</span>→<span style="color:#1E7E42">'+AW.esc(e.correct)+'</span>';}).join('; ')+'</p>';
+        if((fb.lr_issues||[]).length) fbHtml+='<p><b>Vocabulary:</b> '+fb.lr_issues.slice(0,5).map(function(e){return '<span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.original)+'</span>→<span style="color:#1E7E42">'+AW.esc(e.better)+'</span>';}).join('; ')+'</p>';
+        if(fb.cc_feedback&&fb.cc_feedback.assessment_vi) fbHtml+='<p><b>Coherence:</b> '+AW.esc(fb.cc_feedback.assessment_vi)+'</p>';
+      }
+      return head+essay+fbHtml+'</div>';
+    }).join('');
+  }
+  document.getElementById('essayModalBody').innerHTML=header+body;
   document.getElementById('essayModal').classList.add('show');
 };
 window.closeEssayModal=function(){document.getElementById('essayModal').classList.remove('show');};
