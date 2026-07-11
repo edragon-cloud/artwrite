@@ -21,10 +21,17 @@
   .aw-hist-topic{font-weight:600;color:var(--aw-ink);margin-bottom:2px}
   .aw-hist-meta{font-size:.8rem;color:var(--aw-ink-3)}
   .aw-sec-title{font-family:var(--aw-font-display);font-size:1.25rem;font-weight:600;margin:0 0 16px;color:var(--aw-ink)}
+  .aw-rev-bg{position:fixed;inset:0;background:rgba(16,34,46,.55);z-index:600;display:none;align-items:flex-start;justify-content:center;padding:30px 20px;overflow-y:auto}
+  .aw-rev-bg.show{display:flex}
+  .aw-rev-modal{background:#fff;border-radius:16px;width:100%;max-width:720px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:26px}
+  .aw-rev-modal .rv-block{margin-top:14px;padding-top:14px;border-top:1px solid var(--aw-border-2)}
+  .aw-rev-modal .rv-block h4{color:var(--aw-primary);margin:0 0 6px;font-size:.85rem;text-transform:uppercase;letter-spacing:.03em}
+  .aw-rev-modal .rv-block p{margin:0 0 6px;line-height:1.55;font-size:.9rem;color:var(--aw-ink-2)}
 </style>
 </head>
 <body>
 <div id="app"></div>
+<div class="aw-rev-bg" id="reviewModal"><div class="aw-rev-modal" id="reviewModalBody"></div></div>
 
 <script src="aw-common.js"></script>
 <script>
@@ -142,8 +149,9 @@ function showProgress(){
       content.innerHTML='<div class="aw-empty">'+AW.icon('progress')+'<p>Bạn chưa có bài nào. Bắt đầu luyện tập để thấy điểm ở đây.</p></div>';
       return;
     }
+    window._myResults = rows;
     var modeLabel={free:'Free Writing',homework:'Homework',inclass:'In-class'};
-    var tableRows=rows.map(function(r){
+    var tableRows=rows.map(function(r,i){
       var overall=r.overall||r.teacher||'—';
       var scoreColor=overall>=7?'var(--aw-writing)':overall>=5.5?'var(--aw-accent-dk)':'var(--aw-danger)';
       var dur=r.duration?Math.round(parseInt(r.duration,10)/60)+'m':'—';
@@ -156,7 +164,10 @@ function showProgress(){
         '<td style="text-align:center;font-size:.8rem">TR '+AW.esc(String(r.tr||'—'))+' · CC '+AW.esc(String(r.cc||'—'))+'<br>LR '+AW.esc(String(r.lr||'—'))+' · GRA '+AW.esc(String(r.gra||'—'))+'</td>'+
         '<td style="text-align:center">'+dur+'</td>'+
         '<td style="font-size:.8rem;color:var(--aw-ink-3)">'+date+'</td>'+
-        '<td><button class="aw-btn aw-btn-ghost" style="padding:5px 12px;font-size:.8rem" onclick="retryFromProgress(\''+AW.esc(r.mode)+'\',\''+AW.esc(r.topicId)+'\',\''+AW.esc(r.topic)+'\')">Re-try</button></td>'+
+        '<td style="white-space:nowrap">'+
+          (r.feedback?'<button class="aw-btn aw-btn-primary" style="padding:5px 12px;font-size:.8rem;margin-right:4px" onclick="reviewFeedback('+i+')">Review</button>':'')+
+          '<button class="aw-btn aw-btn-ghost" style="padding:5px 12px;font-size:.8rem" onclick="retryFromProgress(\''+AW.esc(r.mode)+'\',\''+AW.esc(r.topicId)+'\',\''+AW.esc(r.topic)+'\')">Re-try</button>'+
+        '</td>'+
       '</tr>';
     }).join('');
     content.innerHTML=
@@ -169,6 +180,41 @@ function showProgress(){
 }
 window.retryFromProgress=function(mode,topicId,topic){
   location.href='write.html?mode='+encodeURIComponent(mode)+'&retry=1&topicId='+encodeURIComponent(topicId)+'&topic='+encodeURIComponent(topic);
+};
+window.reviewFeedback=function(i){
+  var r=(window._myResults||[])[i]; if(!r||!r.feedback)return;
+  var fb; try{ fb=JSON.parse(r.feedback); }catch(e){ AW.toast('Không đọc được feedback','err'); return; }
+  var s=fb.scores||{};
+  function crit(name,val){var pct=val?Math.min(100,(parseFloat(val)/9)*100):0;
+    return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.85rem"><span>'+name+'</span><b>'+(val||'—')+'</b></div><div style="height:6px;background:#E5E9EE;border-radius:4px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#0A6EBD,#0A93BD);border-radius:4px"></div></div></div>';}
+  var body='<div id="reviewContent">'+
+    '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">'+
+      '<div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#0A6EBD,#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff"><b style="font-size:1.5rem">'+(fb.overall||'—')+'</b><span style="font-size:.5rem">BAND</span></div>'+
+      '<div><b>'+AW.esc(fb.band_description||'')+'</b><p style="margin:2px 0 0;font-size:.82rem;color:#667">'+AW.esc(r.topic||'')+'</p></div>'+
+    '</div>'+
+    crit('Task Response',s.TR)+crit('Coherence & Cohesion',s.CC)+crit('Lexical Resource',s.LR)+crit('Grammar',s.GRA)+
+    (fb.overall_feedback_vi?'<div class="rv-block"><h4>Nhận xét chung</h4><p>'+AW.esc(fb.overall_feedback_vi)+'</p></div>':'')+
+    (fb.repeated_errors_vi?'<div class="rv-block" style="background:#FFF8EC"><h4>⚠ Lỗi lặp lại</h4><p>'+AW.esc(fb.repeated_errors_vi)+'</p></div>':'')+
+    ((fb.gra_errors||[]).length?'<div class="rv-block"><h4>Grammar</h4>'+fb.gra_errors.slice(0,10).map(function(e){return '<p><span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.wrong)+'</span> → <span style="color:#1E7E42;font-weight:600">'+AW.esc(e.correct)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:#667">'+AW.esc(e.explanation_vi)+'</span>':'')+'</p>';}).join('')+'</div>':'')+
+    ((fb.lr_issues||[]).length?'<div class="rv-block"><h4>Lexical Resource</h4>'+fb.lr_issues.slice(0,8).map(function(e){return '<p><span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.original)+'</span> → <span style="color:#1E7E42;font-weight:600">'+AW.esc(e.better)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:#667">'+AW.esc(e.explanation_vi)+'</span>':'')+'</p>';}).join('')+'</div>':'')+
+    (fb.cc_feedback&&fb.cc_feedback.assessment_vi?'<div class="rv-block"><h4>Coherence & Cohesion</h4><p>'+AW.esc(fb.cc_feedback.assessment_vi)+'</p></div>':'')+
+    (r.essay?'<div class="rv-block"><h4>Bài viết của bạn</h4><div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;color:#334">'+AW.esc(r.essay)+'</div></div>':'')+
+  '</div>';
+  document.getElementById('reviewModalBody').innerHTML=
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'+
+      '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.3rem">Feedback Review</h2>'+
+      '<div><button class="aw-btn aw-btn-accent" style="padding:6px 14px;margin-right:6px" onclick="exportReviewPDF()">⤓ Export PDF</button>'+
+      '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="closeReview()">Close</button></div>'+
+    '</div>'+body;
+  document.getElementById('reviewModal').classList.add('show');
+};
+window.closeReview=function(){document.getElementById('reviewModal').classList.remove('show');};
+window.exportReviewPDF=function(){
+  var el=document.getElementById('reviewContent');
+  var w=window.open('','_blank');
+  w.document.write('<html><head><title>ArticuWrite Feedback</title><style>body{font-family:Inter,system-ui,sans-serif;max-width:720px;margin:30px auto;padding:0 20px;color:#10222E}h4{color:#0A6EBD;margin:16px 0 6px;font-size:.9rem;text-transform:uppercase}.rv-block{margin-top:12px;padding-top:12px;border-top:1px solid #E5E9EE}p{line-height:1.5;font-size:.9rem}</style></head><body><h1 style="color:#0A6EBD">ArticuWrite — Feedback</h1>'+el.innerHTML+'<p style="margin-top:30px;font-size:.75rem;color:#889">Generated by ArticuWrite · '+new Date().toLocaleString('vi-VN')+'</p></body></html>');
+  w.document.close();
+  setTimeout(function(){w.print();},400);
 };
 
 function showSettings(){

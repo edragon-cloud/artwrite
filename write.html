@@ -186,25 +186,37 @@ document.getElementById('gradeBtn').onclick = function(){
     .then(function(result){
       lastResult=result;
       renderFeedback(result);
-      // save each graded attempt
+      // save each graded attempt WITH full feedback JSON for later review
       return AW.api('write.saveResult', {
         studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
         startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
         duration:Math.round((Date.now()-startTime)/1000),
         tr:result.scores.TR, cc:result.scores.CC, lr:result.scores.LR, gra:result.scores.GRA,
-        aiGrading:result.overall, teacherGrading:'', essay:text, class:(sess.class||'')
+        aiGrading:result.overall, teacherGrading:'', essay:text, class:(sess.class||''),
+        feedback: JSON.stringify(result)
       });
     })
     .then(function(saveRes){
+      if (saveRes && saveRes.locked) {
+        // hit 3-attempt cap or past deadline
+        AW.toast(saveRes.error||'Bài đã khoá.','err',4000);
+        lockEditor(saveRes.error||'Bài này đã khoá.');
+        return;
+      }
       if (saveRes && saveRes.success) attempt = (saveRes.data.attempt||attempt)+1;
-      AW.toast('Đã chấm & lưu bài (lần '+(attempt-1)+')','ok');
+      var done = (attempt-1) >= 3;
+      AW.toast('Đã chấm & lưu bài (lần '+(attempt-1)+'/3)','ok');
       if(MODE!=='free'){
-        editor.setAttribute('contenteditable','false');
-        editor.style.background='var(--aw-surface-2)';
-        var gb=document.getElementById('gradeBtn');
-        if(gb){gb.textContent='Bài đã lưu – Re-try từ My Progress';gb.disabled=true;}
-        var ss2=document.getElementById('submitStatus');
-        if(ss2)ss2.style.display='';
+        if(done){
+          lockEditor('Bạn đã viết đủ 3 lần cho bài này.');
+        } else {
+          editor.setAttribute('contenteditable','false');
+          editor.style.background='var(--aw-surface-2)';
+          var gb=document.getElementById('gradeBtn');
+          if(gb){gb.textContent='Đã lưu lần '+(attempt-1)+'/3 – Re-try từ My Progress';gb.disabled=true;}
+          var ss2=document.getElementById('submitStatus');
+          if(ss2)ss2.style.display='';
+        }
         sendHeartbeat('Submitted');
       }
     })
@@ -213,23 +225,29 @@ document.getElementById('gradeBtn').onclick = function(){
 };
 
 // Grade button handles both grading and saving (submit=grade)
+function lockEditor(msg){
+  editor.setAttribute('contenteditable','false');
+  editor.style.background='var(--aw-surface-2)';
+  var gb=document.getElementById('gradeBtn');
+  if(gb){gb.textContent='🔒 '+(msg||'Bài đã khoá');gb.disabled=true;}
+  var ss2=document.getElementById('submitStatus');
+  if(ss2){ss2.style.display='';ss2.innerHTML='<span style="color:var(--aw-danger);font-weight:600">🔒 '+AW.esc(msg||'Bài đã khoá')+'</span>';}
+}
 
 /*──────── render feedback (indirect→direct by attempt) ────────*/
 function renderFeedback(r){
   var s=r.scores||{};
-  var directMode = attempt >= 2; // Revision 1 = indirect; later = direct detail
-  // Show annotated essay on left side (error marks inline)
+  // Annotate essay on left (error marks inline) — always
   if(r.corrected_text || (r.gra_errors && r.gra_errors.length)){
     var essayText = editor.innerText;
     var annotated = essayText;
-    // mark grammar errors with strikethrough red + green fix
-    if(r.gra_errors) r.gra_errors.slice(0,8).forEach(function(e){
+    if(r.gra_errors) r.gra_errors.slice(0,10).forEach(function(e){
       if(e.wrong && e.correct){
         var re=new RegExp(e.wrong.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g');
         annotated=annotated.replace(re,'<span class="err-mark">'+AW.esc(e.wrong)+'</span><span class="fix-mark"> →'+AW.esc(e.correct)+'</span>');
       }
     });
-    if(r.lr_issues) r.lr_issues.slice(0,5).forEach(function(e){
+    if(r.lr_issues) r.lr_issues.slice(0,6).forEach(function(e){
       if(e.original && e.better){
         var re=new RegExp(e.original.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g');
         annotated=annotated.replace(re,'<span style="text-decoration:underline;text-decoration-color:var(--aw-accent);text-decoration-style:wavy">'+AW.esc(e.original)+'<span style="color:var(--aw-accent);font-size:.8em"> (→'+AW.esc(e.better)+')</span></span>');
@@ -245,37 +263,39 @@ function renderFeedback(r){
     crit('Task Response', s.TR) + crit('Coherence & Cohesion', s.CC) +
     crit('Lexical Resource', s.LR) + crit('Grammar', s.GRA);
 
-  // Overall feedback (always shown)
-  if(r.overall_feedback_vi){
-    html += '<div class="aw-fb-block"><h4>Overall</h4><div class="aw-fb-item">'+AW.esc(r.overall_feedback_vi)+'</div></div>';
+  // For attempt 2-3: highlight whether old mistakes were repeated
+  if (attempt >= 2 && r.repeated_errors_vi) {
+    html += '<div class="aw-fb-block" style="border-left:3px solid var(--aw-accent);background:#FFF8EC"><h4>⚠ Lỗi lặp lại từ lần trước</h4><div class="aw-fb-item">'+AW.esc(r.repeated_errors_vi)+'</div></div>';
   }
-  if (!directMode) {
-    // INDIRECT: show all 4 criteria scores (already shown above as bars)
-    // but only hint at error categories, not full corrections
-    html += '<div class="aw-fb-block"><h4>Areas to self-edit (Revision '+attempt+')</h4>';
-    var areas=[];
-    if((r.gra_errors||[]).length) areas.push('<b>Grammar</b>: '+r.gra_errors.length+' issue(s) — find & fix them in your essay (errors highlighted left)');
-    if((r.lr_issues||[]).length) areas.push('<b>Word choice</b>: '+r.lr_issues.length+' place(s) to improve (underlined left)');
-    if(r.cc_feedback&&r.cc_feedback.assessment_vi) areas.push('<b>Coherence</b>: '+AW.esc(r.cc_feedback.assessment_vi.slice(0,100)));
-    if(r.tr_comments&&r.tr_comments[0]&&r.tr_comments[0].assessment_vi) areas.push('<b>Task Response</b>: '+AW.esc(r.tr_comments[0].assessment_vi.slice(0,100)));
-    html += areas.length? areas.map(function(a){return '<div class="aw-fb-item">'+a+'</div>';}).join('')
-                        : '<div class="aw-fb-item">Good work — no major issues flagged.</div>';
-    html += '<p style="font-size:.8rem;color:var(--aw-ink-3);margin-top:8px">Xem lỗi được đánh dấu bên trái. Khi sửa xong, vào <b>My Progress</b> để Re-try.</p></div>';
-  } else {
-    // DIRECT: chi tiết
-    if((r.gra_errors||[]).length){
-      html+='<div class="aw-fb-block"><h4>Grammar</h4>'+r.gra_errors.slice(0,6).map(function(e){
-        return '<div class="aw-fb-item"><span class="err-mark">'+AW.esc(e.wrong)+'</span> → <span class="fix-mark">'+AW.esc(e.correct)+'</span><br><span style="font-size:.8rem">'+AW.esc(e.explanation_vi||'')+'</span></div>';
-      }).join('')+'</div>';
-    }
-    if((r.lr_issues||[]).length){
-      html+='<div class="aw-fb-block"><h4>Word choice</h4>'+r.lr_issues.slice(0,5).map(function(e){
-        return '<div class="aw-fb-item"><span class="err-mark">'+AW.esc(e.original)+'</span> → <span class="fix-mark">'+AW.esc(e.better)+'</span><br><span style="font-size:.8rem">'+AW.esc(e.explanation_vi||'')+'</span></div>';
-      }).join('')+'</div>';
-    }
+
+  // Overall feedback — always full
+  if(r.overall_feedback_vi){
+    html += '<div class="aw-fb-block"><h4>Overall Assessment</h4><div class="aw-fb-item">'+AW.esc(r.overall_feedback_vi)+'</div></div>';
+  }
+  // Task Response detail
+  if(r.tr_comments && r.tr_comments.length){
+    html += '<div class="aw-fb-block"><h4>Task Response</h4>'+r.tr_comments.slice(0,4).map(function(c){
+      return '<div class="aw-fb-item">'+(c.original_idea?'<i>"'+AW.esc(c.original_idea)+'"</i><br>':'')+AW.esc(c.assessment_vi||'')+(c.suggestion_en?'<br><span style="color:var(--aw-primary);font-size:.85rem">→ '+AW.esc(c.suggestion_en)+'</span>':'')+'</div>';
+    }).join('')+'</div>';
+  }
+  // Coherence
+  if(r.cc_feedback && r.cc_feedback.assessment_vi){
+    html += '<div class="aw-fb-block"><h4>Coherence & Cohesion</h4><div class="aw-fb-item">'+AW.esc(r.cc_feedback.assessment_vi)+
+      ((r.cc_feedback.suggestions&&r.cc_feedback.suggestions.length)?'<br><span style="font-size:.85rem;color:var(--aw-primary)">→ '+AW.esc([].concat(r.cc_feedback.suggestions).join('; '))+'</span>':'')+'</div></div>';
+  }
+  // Grammar — full detail always
+  if((r.gra_errors||[]).length){
+    html+='<div class="aw-fb-block"><h4>Grammar ('+r.gra_errors.length+' issues)</h4>'+r.gra_errors.slice(0,8).map(function(e){
+      return '<div class="aw-fb-item"><span class="err-mark">'+AW.esc(e.wrong)+'</span> → <span class="fix-mark">'+AW.esc(e.correct)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(e.explanation_vi)+'</span>':'')+'</div>';
+    }).join('')+'</div>';
+  }
+  // Lexical — full detail always
+  if((r.lr_issues||[]).length){
+    html+='<div class="aw-fb-block"><h4>Lexical Resource ('+r.lr_issues.length+' suggestions)</h4>'+r.lr_issues.slice(0,6).map(function(e){
+      return '<div class="aw-fb-item"><span class="err-mark">'+AW.esc(e.original)+'</span> → <span class="fix-mark">'+AW.esc(e.better)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(e.explanation_vi)+'</span>':'')+'</div>';
+    }).join('')+'</div>';
   }
   document.getElementById('sideBody').innerHTML=html;
-  // animate bars
   setTimeout(function(){AW.els('.aw-bar-fill').forEach(function(b){b.style.width=b.dataset.w;});},50);
 }
 function crit(name,val){
@@ -304,11 +324,14 @@ async function gradeWithGemini(payload, geminiKey){
     'LR: Band 7=flexible range, minor errors. Band 6=adequate. Band 5=limited. Band 4=basic.\n'+
     'GRA: Band 7=complex structures, frequent error-free. Band 6=mix. Band 5=frequent errors. Band 4=many errors.\n\n'+
     'SCORING RULES:\n- Components: whole numbers or X.5 if borderline.\n- Overall = average of 4, round to 0.5.\n- Most students score 5-6. Band 7 = genuinely good. Band 8+ very rare.\n- Grammar errors → GRA ≤ 6. Basic vocab → LR ≤ 6.\n\n'+
-    'Return ONLY a JSON object with fields: scores(TR,CC,LR,GRA), overall, band_description, overall_feedback_vi, tr_comments(array of {original_idea,assessment_vi,suggestion_en}), gra_errors(array of {wrong,correct,explanation_vi}), lr_issues(array of {original,better,explanation_vi,alternatives}), cc_feedback({assessment_vi,issues,suggestions}), corrected_text.';
+    'Return ONLY a JSON object with fields: scores(TR,CC,LR,GRA), overall, band_description, overall_feedback_vi, tr_comments(array of {original_idea,assessment_vi,suggestion_en}), gra_errors(array of {wrong,correct,explanation_vi}), lr_issues(array of {original,better,explanation_vi,alternatives}), cc_feedback({assessment_vi,issues,suggestions}), corrected_text, repeated_errors_vi.';
   // Strip HTML tags from question (may contain <b>,<i> from rich text editor)
   var tmp=document.createElement('div'); tmp.innerHTML=question;
   var cleanQ=(tmp.textContent||tmp.innerText||question).replace(/\s+/g,' ').trim();
-  var userMessage='Grade this IELTS essay.\n\nTASK PROMPT: '+cleanQ+'\n\nSTUDENT ESSAY TO GRADE:\n---\n'+text+'\n---\n\nAll feedback must reference the student essay above. Task Response score MUST assess how directly the essay addresses the given task prompt. If the essay goes off-topic or misses the task, TR ≤ 5.';
+  var attemptNote = payload.attempt >= 2
+    ? '\n\nThis is revision attempt '+payload.attempt+'. In "repeated_errors_vi" (Vietnamese), note whether the student repeated the same TYPES of mistakes as a typical earlier draft (grammar/vocab/coherence) and encourage improvement. For attempt 1, leave repeated_errors_vi empty.'
+    : '\n\nThis is the first attempt. Leave repeated_errors_vi empty. Give COMPLETE feedback on all 4 criteria so the student learns from the start.';
+  var userMessage='Grade this IELTS essay.\n\nTASK PROMPT: '+cleanQ+'\n\nSTUDENT ESSAY TO GRADE:\n---\n'+text+'\n---\n\nAll feedback must reference the student essay above and be thorough. Task Response score MUST assess how directly the essay addresses the given task prompt. If the essay goes off-topic or misses the task, TR ≤ 5.'+attemptNote;
   var prompt=systemInstruction+'\n\n'+userMessage;
 
   var resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+geminiKey,{

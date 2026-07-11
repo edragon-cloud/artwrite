@@ -587,38 +587,50 @@ function renderResults(q){
   q=(q||'').toLowerCase();
   var rows=resultsData.filter(function(g){
     if(!q)return true;
-    return (g.name+' '+g.studentId+' '+g.topic+' '+g.class).toLowerCase().indexOf(q)>-1;
+    return (g.name+' '+g.studentId+' '+g.topic+' '+(g.className||g.class)).toLowerCase().indexOf(q)>-1;
   });
   var cnt=document.getElementById('resCount'); if(cnt)cnt.textContent=rows.length+' rows';
   if(!rows.length){box.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>No results in this mode yet.</p></div>';return;}
-  // sort
   rows.sort(function(a,b){
     var k=resultsSort.key, av=(a[k]||'').toString().toLowerCase(), bv=(b[k]||'').toString().toLowerCase();
     return av<bv?-resultsSort.dir:av>bv?resultsSort.dir:0;
   });
-  // header: First/Second/Third/Fourth/Last × (Start/Finish/Dur/Result)
-  var writeLabels=['First write','Second write','Third write','Fourth write','Last write'];
+  // 3 writes + Best write + Attempts summary
+  var writeLabels=['First Write','Second Write','Third Write','Best Write'];
   var top='<tr><th class="sticky" rowspan="2" data-sort="studentId">Student ID</th>'+
-    '<th rowspan="2" data-sort="name">Name</th><th rowspan="2" data-sort="class">Class</th>'+
+    '<th rowspan="2" data-sort="name">Name</th><th rowspan="2" data-sort="className">Class</th>'+
     '<th rowspan="2" data-sort="topic">Topic</th>';
   writeLabels.forEach(function(l){ top+='<th colspan="4">'+l+'</th>'; });
-  top+='</tr><tr>';
+  top+='<th rowspan="2" data-sort="bestResult">Attempts</th></tr><tr>';
   writeLabels.forEach(function(){ top+='<th>Start</th><th>Finish</th><th>Dur</th><th>Result</th>'; });
   top+='</tr>';
 
-  var body=rows.map(function(g){
+  var body=rows.map(function(g,gi){
     var w=g.writes||[];
-    var picks=[ w[0], w[1], w[2], w[3], w.length>4?w[w.length-1]:(w.length===4?null:null) ];
-    // Last write = final one if >4 attempts; if exactly ≤4, last column shows the final attempt too when distinct
-    if(w.length>=1 && w.length<=4){ picks[4]=w[w.length-1]; }
+    // best write = highest overall
+    var best=null,bestIdx=-1;
+    w.forEach(function(x,xi){var v=parseFloat(x.overall);if(!isNaN(v)&&(best===null||v>parseFloat(best.overall))){best=x;bestIdx=xi;}});
+    var picks=[ w[0], w[1], w[2], best ];
+    // attempts summary cell
+    var vals=w.map(function(x){return parseFloat(x.overall);}).filter(function(v){return !isNaN(v);});
+    var avg=vals.length?(vals.reduce(function(a,b){return a+b;},0)/vals.length).toFixed(1):'—';
+    var bestVal=best?best.overall:'—';
+    var improve = (vals.length>=2)? (vals[vals.length-1]-vals[0]).toFixed(1) : null;
+    var impBadge = improve!==null ? (parseFloat(improve)>=0?'<span style="color:var(--aw-writing)">▲ +'+improve+'</span>':'<span style="color:var(--aw-danger)">▼ '+improve+'</span>') : '';
+    var attemptsCell='<div style="font-size:.8rem;line-height:1.5">'+
+      '<div><b>'+w.length+'/3</b> lần</div>'+
+      '<div>Best: <b style="color:var(--aw-primary)">'+bestVal+'</b></div>'+
+      '<div>Avg: '+avg+'</div>'+
+      (impBadge?'<div>'+impBadge+'</div>':'')+'</div>';
+
     var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+'</td>'+
-      '<td>'+AW.esc(g.class||'')+'</td><td style="text-align:left;white-space:normal;max-width:180px">'+AW.esc(g.topic||'')+'</td>';
-    picks.forEach(function(p){ tds+=timeCells(p)+scoreCell(p); });
+      '<td>'+AW.esc(g.className||g.class||'')+'</td><td style="text-align:left;white-space:normal;max-width:170px">'+AW.esc(g.topic||'')+'</td>';
+    picks.forEach(function(p,pi){ tds+=timeCells(p)+scoreCell(p,gi,pi); });
+    tds+='<td>'+attemptsCell+'</td>';
     return '<tr>'+tds+'</tr>';
   }).join('');
 
   box.innerHTML='<div class="aw-table-wrap" style="overflow-x:auto"><table class="aw-res-table"><thead>'+top+'</thead><tbody>'+body+'</tbody></table></div>';
-  // sortable headers
   AW.els('[data-sort]').forEach(function(th){
     th.style.cursor='pointer';
     th.onclick=function(){
