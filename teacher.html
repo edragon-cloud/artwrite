@@ -689,19 +689,21 @@ function renderResults(){
     var improve=(vals.length>=2)?(vals[vals.length-1]-vals[0]).toFixed(1):null;
     var impBadge=improve!==null?(parseFloat(improve)>=0?'<span style="color:var(--aw-writing)">▲ +'+improve+'</span>':'<span style="color:var(--aw-danger)">▼ '+improve+'</span>'):'';
     var ts = g.teacherScore || {};
-    var attemptsCell='<div style="font-size:.78rem;line-height:1.5;min-width:170px" class="grp-best">'+
+    var attemptsCell='<div style="font-size:.78rem;line-height:1.5;width:200px;padding:2px" class="grp-best">'+
       '<div style="margin-bottom:6px"><b>'+w.length+'/3</b> attempts · AI best <b style="color:var(--aw-primary)">'+bestVal+'</b></div>'+
       '<div style="font-weight:600;margin-bottom:3px;color:var(--aw-ink-2)">Teacher scoring:</div>'+
-      '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-bottom:4px">'+
+      '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-bottom:5px">'+
         '<input class="ms-in" data-f="tr" placeholder="TR" value="'+AW.esc(ts.tr||'')+'" title="Task Response">'+
         '<input class="ms-in" data-f="cc" placeholder="CC" value="'+AW.esc(ts.cc||'')+'" title="Coherence">'+
         '<input class="ms-in" data-f="lr" placeholder="LR" value="'+AW.esc(ts.lr||'')+'" title="Lexical">'+
         '<input class="ms-in" data-f="gra" placeholder="GR" value="'+AW.esc(ts.gra||'')+'" title="Grammar">'+
-        '<input class="ms-in" data-f="overall" placeholder="OA" value="'+AW.esc(ts.overall||'')+'" title="Overall" style="font-weight:700">'+
+        '<input class="ms-in" data-f="overall" placeholder="OA" value="'+AW.esc(ts.overall||'')+'" title="Overall" style="font-weight:700;background:#FEF6E3">'+
       '</div>'+
-      '<input class="ms-note" data-f="note" placeholder="Note…" value="'+AW.esc(ts.note||'')+'" style="width:100%;margin-bottom:4px">'+
-      '<button class="ms-save aw-btn aw-btn-primary" style="padding:4px 10px;font-size:.72rem;width:100%" data-gi="'+gi+'">Save score</button>'+
-      (ts.gradedAt?'<div style="font-size:.65rem;color:var(--aw-ink-3);margin-top:2px">✓ Graded</div>':'')+
+      '<div style="display:flex;gap:5px;align-items:center">'+
+        '<input class="ms-note" data-f="note" placeholder="Note…" value="'+AW.esc(ts.note||'')+'" style="flex:1;min-width:0">'+
+        '<button class="ms-save aw-btn aw-btn-primary" style="padding:5px 12px;font-size:.72rem;flex:0 0 auto" data-gi="'+gi+'">Save</button>'+
+      '</div>'+
+      (ts.gradedAt?'<div style="font-size:.65rem;color:var(--aw-writing);margin-top:3px">✓ Graded</div>':'')+
     '</div>';
     var topicCell='<td style="text-align:left;white-space:normal;max-width:170px"><b>'+AW.esc(g.topic||'')+'</b></td>';
     var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+'</td>'+
