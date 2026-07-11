@@ -146,7 +146,7 @@ function showProgress(){
   AW.api('write.getMyResults',{studentId:sess.studentId}).then(function(res){
     var rows=(res&&res.data)||[];
     if(!rows.length){
-      content.innerHTML='<div class="aw-empty">'+AW.icon('progress')+'<p>Bạn chưa có bài nào. Bắt đầu luyện tập để thấy điểm ở đây.</p></div>';
+      content.innerHTML='<div class="aw-empty">'+AW.icon('progress')+'<p>No submissions yet. Start practicing to see your scores here.</p></div>';
       return;
     }
     window._myResults = rows;
@@ -183,7 +183,7 @@ window.retryFromProgress=function(mode,topicId,topic){
 };
 window.reviewFeedback=function(i){
   var r=(window._myResults||[])[i]; if(!r||!r.feedback)return;
-  var fb; try{ fb=JSON.parse(r.feedback); }catch(e){ AW.toast('Không đọc được feedback','err'); return; }
+  var fb; try{ fb=JSON.parse(r.feedback); }catch(e){ AW.toast('Could not read feedback','err'); return; }
   var s=fb.scores||{};
   function crit(name,val){var pct=val?Math.min(100,(parseFloat(val)/9)*100):0;
     return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.85rem"><span>'+name+'</span><b>'+(val||'—')+'</b></div><div style="height:6px;background:#E5E9EE;border-radius:4px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#0A6EBD,#0A93BD);border-radius:4px"></div></div></div>';}
@@ -193,22 +193,33 @@ window.reviewFeedback=function(i){
       '<div><b>'+AW.esc(fb.band_description||'')+'</b><p style="margin:2px 0 0;font-size:.82rem;color:#667">'+AW.esc(r.topic||'')+'</p></div>'+
     '</div>'+
     crit('Task Response',s.TR)+crit('Coherence & Cohesion',s.CC)+crit('Lexical Resource',s.LR)+crit('Grammar',s.GRA)+
-    (fb.overall_feedback_vi?'<div class="rv-block"><h4>Nhận xét chung</h4><p>'+AW.esc(fb.overall_feedback_vi)+'</p></div>':'')+
-    (fb.repeated_errors_vi?'<div class="rv-block" style="background:#FFF8EC"><h4>⚠ Lỗi lặp lại</h4><p>'+AW.esc(fb.repeated_errors_vi)+'</p></div>':'')+
+    (fb.overall_feedback_vi?'<div class="rv-block"><h4>Overall assessment</h4><p>'+AW.esc(fb.overall_feedback_vi)+'</p></div>':'')+
+    (fb.repeated_errors_vi?'<div class="rv-block" style="background:#FFF8EC"><h4>⚠ Repeated errors</h4><p>'+AW.esc(fb.repeated_errors_vi)+'</p></div>':'')+
     ((fb.gra_errors||[]).length?'<div class="rv-block"><h4>Grammar</h4>'+fb.gra_errors.slice(0,10).map(function(e){return '<p><span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.wrong)+'</span> → <span style="color:#1E7E42;font-weight:600">'+AW.esc(e.correct)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:#667">'+AW.esc(e.explanation_vi)+'</span>':'')+'</p>';}).join('')+'</div>':'')+
     ((fb.lr_issues||[]).length?'<div class="rv-block"><h4>Lexical Resource</h4>'+fb.lr_issues.slice(0,8).map(function(e){return '<p><span style="color:#EA4335;text-decoration:line-through">'+AW.esc(e.original)+'</span> → <span style="color:#1E7E42;font-weight:600">'+AW.esc(e.better)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:#667">'+AW.esc(e.explanation_vi)+'</span>':'')+'</p>';}).join('')+'</div>':'')+
     (fb.cc_feedback&&fb.cc_feedback.assessment_vi?'<div class="rv-block"><h4>Coherence & Cohesion</h4><p>'+AW.esc(fb.cc_feedback.assessment_vi)+'</p></div>':'')+
-    (r.essay?'<div class="rv-block"><h4>Bài viết của bạn</h4><div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;color:#334">'+AW.esc(r.essay)+'</div></div>':'')+
+    (r.essay?'<div class="rv-block"><h4>Your essay</h4><div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;color:#334">'+AW.esc(r.essay)+'</div></div>':'')+
   '</div>';
   document.getElementById('reviewModalBody').innerHTML=
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'+
       '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.3rem">Feedback Review</h2>'+
-      '<div><button class="aw-btn aw-btn-accent" style="padding:6px 14px;margin-right:6px" onclick="exportReviewPDF()">⤓ Export PDF</button>'+
+      '<div><button class="aw-btn aw-btn-accent" style="padding:6px 14px;margin-right:6px" onclick="exportGoogleDoc('+i+')">📄 Save to Google Doc</button>'+
+      '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px;margin-right:6px" onclick="exportReviewPDF()">⤓ Print/PDF</button>'+
       '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="closeReview()">Close</button></div>'+
     '</div>'+body;
   document.getElementById('reviewModal').classList.add('show');
 };
 window.closeReview=function(){document.getElementById('reviewModal').classList.remove('show');};
+window.exportGoogleDoc=function(i){
+  var r=(window._myResults||[])[i]; if(!r)return;
+  AW.toast('Creating Google Doc… (this may take a moment)');
+  AW.api('write.exportDoc',{studentId:sess.studentId,topicId:r.topicId,mode:r.mode}).then(function(res){
+    if(res&&res.success){
+      AW.toast('Doc created!','ok');
+      window.open(res.data.url,'_blank');
+    } else AW.toast((res&&res.error)||'Export failed','err',4000);
+  });
+};
 window.exportReviewPDF=function(){
   var el=document.getElementById('reviewContent');
   var w=window.open('','_blank');
@@ -223,31 +234,31 @@ function showSettings(){
   content.innerHTML=
     '<div class="aw-card" style="padding:24px;max-width:520px;margin-bottom:16px">' +
       '<h3 style="margin:0 0 6px">Gemini API Key</h3>' +
-      '<p style="color:var(--aw-ink-2);font-size:.9rem;margin:0 0 14px">Key lưu trên máy bạn, không gửi lên server. Cần để chấm bài bằng AI.</p>' +
-      '<div class="aw-pass-wrap" style="margin-bottom:12px"><input class="aw-input" id="keyIn" type="password" placeholder="'+(hasKey?'•••••••• (đã lưu)':'AIza…')+'"></div>' +
+      '<p style="color:var(--aw-ink-2);font-size:.9rem;margin:0 0 14px">Stored on your device, never sent to the server. Needed for AI grading.</p>' +
+      '<div class="aw-pass-wrap" style="margin-bottom:12px"><input class="aw-input" id="keyIn" type="password" placeholder="'+(hasKey?'•••••••• (saved)':'AIza…')+'"></div>' +
       '<button class="aw-btn aw-btn-primary" id="keyBtn">Save key</button>' +
       (hasKey?' <button class="aw-btn aw-btn-ghost" id="keyClear">Remove</button>':'') +
     '</div>' +
     '<div class="aw-card" style="padding:24px;max-width:520px">' +
       '<h3 style="margin:0 0 14px">Change Password</h3>' +
-      '<div class="aw-field"><label class="aw-label">Mật khẩu hiện tại</label><input class="aw-input" id="pwOld" type="password"></div>' +
-      '<div class="aw-field"><label class="aw-label">Mật khẩu mới</label><input class="aw-input" id="pwNew" type="password"></div>' +
-      '<div class="aw-field"><label class="aw-label">Xác nhận mật khẩu mới</label><input class="aw-input" id="pwNew2" type="password"></div>' +
+      '<div class="aw-field"><label class="aw-label">Current password</label><input class="aw-input" id="pwOld" type="password"></div>' +
+      '<div class="aw-field"><label class="aw-label">New password</label><input class="aw-input" id="pwNew" type="password"></div>' +
+      '<div class="aw-field"><label class="aw-label">Confirm new password</label><input class="aw-input" id="pwNew2" type="password"></div>' +
       '<button class="aw-btn aw-btn-primary" id="pwBtn">Update password</button>' +
     '</div>';
   document.getElementById('keyBtn').onclick=function(){
     var k=document.getElementById('keyIn').value.trim();
-    if(k){AW.geminiKey.set(k);AW.toast('Đã lưu API key','ok');showSettings();}
+    if(k){AW.geminiKey.set(k);AW.toast('API key saved','ok');showSettings();}
   };
   var clr=document.getElementById('keyClear');
-  if(clr)clr.onclick=function(){AW.geminiKey.set('');AW.toast('Đã xoá key','ok');showSettings();};
+  if(clr)clr.onclick=function(){AW.geminiKey.set('');AW.toast('Key removed','ok');showSettings();};
   document.getElementById('pwBtn').onclick=function(){
     var o=document.getElementById('pwOld').value, n=document.getElementById('pwNew').value, n2=document.getElementById('pwNew2').value;
-    if(!o||!n){AW.toast('Nhập đầy đủ.','err');return;}
-    if(n!==n2){AW.toast('Mật khẩu mới không khớp.','err');return;}
+    if(!o||!n){AW.toast('Please fill all fields.','err');return;}
+    if(n!==n2){AW.toast('New password không khớp.','err');return;}
     AW.api('auth.changePassword',{studentId:sess.studentId,oldPass:o,newPass:n}).then(function(res){
-      if(res&&res.success)AW.toast('Đã đổi mật khẩu','ok');
-      else AW.toast((res&&res.error)||'Thất bại','err');
+      if(res&&res.success)AW.toast('Password changed','ok');
+      else AW.toast((res&&res.error)||'Failed','err');
     });
   };
 }

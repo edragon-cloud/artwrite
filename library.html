@@ -66,7 +66,7 @@ content.innerHTML =
     '<span style="font-weight:600;font-size:.9rem">Master outline control:</span>'+
     '<button class="aw-btn aw-btn-ghost" id="lockAllBtn" style="padding:7px 14px">🔒 Lock all</button>'+
     '<button class="aw-btn aw-btn-accent" id="openAllBtn" style="padding:7px 14px">🔓 Open all</button>'+
-    '<span style="font-size:.82rem;color:var(--aw-ink-3);margin-left:auto">Rồi mở từng đề bạn muốn ở bên dưới.</span>'+
+    '<span style="font-size:.82rem;color:var(--aw-ink-3);margin-left:auto">Then open individual prompts below.</span>'+
   '</div>' : '') +
   '<div class="aw-toolbar">' +
     '<div class="aw-search">'+AW.icon('search')+'<input id="q" placeholder="Search questions, topics, keywords…"></div>' +
@@ -159,7 +159,7 @@ function outlineHtml(q){
   var html='';
   if(b1) html+='<div class="aw-outline-para"><h4>Body Paragraph 1</h4>'+b1+'</div>';
   if(b2) html+='<div class="aw-outline-para"><h4>Body Paragraph 2</h4>'+b2+'</div>';
-  return html || '<p style="color:var(--aw-ink-3)">Chưa có dàn ý mẫu cho đề này.</p>';
+  return html || '<p style="color:var(--aw-ink-3)">No model outline for this prompt yet.</p>';
 }
 
 function openDetail(q){
@@ -179,7 +179,7 @@ function openDetail(q){
     (teacherToggle?'<div style="margin:10px 0">'+teacherToggle+'</div>':'')+
     (showOutline
       ? '<h3 style="font-family:var(--aw-font-display);margin:18px 0 0">Suggested Outline</h3>'+outlineHtml(q)
-      : '<div class="aw-lock-note">🔒 Dàn ý mẫu cho đề này đang bị khoá. Giảng viên sẽ mở khi phù hợp. Bạn vẫn có thể luyện viết đề này ngay.</div>')+
+      : '<div class="aw-lock-note">🔒 The model outline for this prompt is locked. Your teacher will open it when appropriate. You can still practice this prompt now.</div>')+
     '<div style="margin-top:20px;display:flex;gap:10px">'+
       (isTeacher?'':'<button class="aw-btn aw-btn-primary" id="writeBtn">Write this prompt</button>')+
     '</div>';

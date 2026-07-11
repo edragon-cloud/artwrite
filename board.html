@@ -92,7 +92,7 @@ function showList(){
   AW.api('board.list',{class:myBoardClass()}).then(function(res){
     var rows=(res&&res.data)||[];
     var grid=document.getElementById('boardGrid');
-    if(!rows.length){grid.innerHTML='<div class="aw-empty">'+AW.icon('modes')+'<p>'+(isTeacher?'Chưa có bảng nào. Bấm “+ New Board”.':'Chưa có bảng nào cho lớp bạn.')+'</p></div>';return;}
+    if(!rows.length){grid.innerHTML='<div class="aw-empty">'+AW.icon('modes')+'<p>'+(isTeacher?'No boards yet. Click “+ New Board”.':'No boards for your class yet.')+'</p></div>';return;}
     grid.innerHTML=rows.map(function(b){
       return '<div class="aw-board-card" data-id="'+AW.esc(b.boardId)+'">' +
         '<h3>'+AW.esc(b.title)+'</h3>' +
@@ -105,17 +105,17 @@ function showList(){
     });
     AW.els('[data-del]').forEach(function(b){
       b.onclick=function(e){ e.stopPropagation();
-        if(confirm('Xoá bảng này?')) AW.api('board.delete',{boardId:b.dataset.del}).then(showList);
+        if(confirm('Delete this board?')) AW.api('board.delete',{boardId:b.dataset.del}).then(showList);
       };
     });
   });
 }
 
 function createBoard(){
-  var title=prompt('Tên bảng:','Class Board'); if(!title)return;
+  var title=prompt('Board title:','Class Board'); if(!title)return;
   AW.api('board.create',{class:myBoardClass(),title:title,owner:sess.name||sess.email}).then(function(res){
-    if(res&&res.success){ AW.toast('Đã tạo bảng','ok'); openBoard(res.data.boardId); }
-    else AW.toast('Tạo thất bại','err');
+    if(res&&res.success){ AW.toast('Board created','ok'); openBoard(res.data.boardId); }
+    else AW.toast('Failed to create','err');
   });
 }
 

@@ -106,7 +106,7 @@ content.innerHTML =
     '</div>' +
     '<div class="aw-side-panel" id="side">' +
       '<h3>'+(MODE==='free'?'AI Feedback':'Revision History')+'</h3>' +
-      '<div id="sideBody"><p style="color:var(--aw-ink-3);font-size:.88rem">Viết xong rồi bấm <b>Get AI Feedback</b> để nhận điểm và nhận xét.</p></div>' +
+      '<div id="sideBody"><p style="color:var(--aw-ink-3);font-size:.88rem">When finished, click <b>Get AI Feedback</b> to get your score and feedback.</p></div>' +
       '<div id="submitStatus" style="margin-top:14px;text-align:center;display:none"><span style="color:var(--aw-writing);font-weight:600">✓ Submitted</span></div>' +
     '</div>' +
   '</div>';
@@ -175,9 +175,9 @@ sendHeartbeat('Writing'); // initial ping
 var lastResult=null;
 document.getElementById('gradeBtn').onclick = function(){
   var text = editor.innerText.trim();
-  if (AW.wordCount(text) < 20) { AW.toast('Viết ít nhất 20 từ trước khi chấm.','err'); return; }
+  if (AW.wordCount(text) < 20) { AW.toast('Write at least 20 words before grading.','err'); return; }
   var key = AW.geminiKey.get();
-  if (!key) { AW.toast('Cần nhập Gemini API key trước.','err'); return; }
+  if (!key) { AW.toast('Please enter your Gemini API key first.','err'); return; }
 
   var btn=this; btn.disabled=true; var orig=btn.textContent;
   btn.innerHTML='<span class="aw-spin"></span> Grading…';
@@ -199,28 +199,28 @@ document.getElementById('gradeBtn').onclick = function(){
     .then(function(saveRes){
       if (saveRes && saveRes.locked) {
         // hit 3-attempt cap or past deadline
-        AW.toast(saveRes.error||'Bài đã khoá.','err',4000);
-        lockEditor(saveRes.error||'Bài này đã khoá.');
+        AW.toast(saveRes.error||'This task is locked.','err',4000);
+        lockEditor(saveRes.error||'This task is locked.');
         return;
       }
       if (saveRes && saveRes.success) attempt = (saveRes.data.attempt||attempt)+1;
       var done = (attempt-1) >= 3;
-      AW.toast('Đã chấm & lưu bài (lần '+(attempt-1)+'/3)','ok');
+      AW.toast('Graded & saved (attempt '+(attempt-1)+'/3)','ok');
       if(MODE!=='free'){
         if(done){
-          lockEditor('Bạn đã viết đủ 3 lần cho bài này.');
+          lockEditor('You have completed all 3 attempts for this task.');
         } else {
           editor.setAttribute('contenteditable','false');
           editor.style.background='var(--aw-surface-2)';
           var gb=document.getElementById('gradeBtn');
-          if(gb){gb.textContent='Đã lưu lần '+(attempt-1)+'/3 – Re-try từ My Progress';gb.disabled=true;}
+          if(gb){gb.textContent='Saved attempt '+(attempt-1)+'/3 – Re-try from My Progress';gb.disabled=true;}
           var ss2=document.getElementById('submitStatus');
           if(ss2)ss2.style.display='';
         }
         sendHeartbeat('Submitted');
       }
     })
-    .catch(function(e){ AW.toast(e.message||'Lỗi chấm bài','err'); })
+    .catch(function(e){ AW.toast(e.message||'Grading error','err'); })
     .finally(function(){ btn.disabled=false; btn.textContent=orig; });
 };
 
@@ -229,9 +229,9 @@ function lockEditor(msg){
   editor.setAttribute('contenteditable','false');
   editor.style.background='var(--aw-surface-2)';
   var gb=document.getElementById('gradeBtn');
-  if(gb){gb.textContent='🔒 '+(msg||'Bài đã khoá');gb.disabled=true;}
+  if(gb){gb.textContent='🔒 '+(msg||'Task locked');gb.disabled=true;}
   var ss2=document.getElementById('submitStatus');
-  if(ss2){ss2.style.display='';ss2.innerHTML='<span style="color:var(--aw-danger);font-weight:600">🔒 '+AW.esc(msg||'Bài đã khoá')+'</span>';}
+  if(ss2){ss2.style.display='';ss2.innerHTML='<span style="color:var(--aw-danger);font-weight:600">🔒 '+AW.esc(msg||'Task locked')+'</span>';}
 }
 
 /*──────── render feedback (indirect→direct by attempt) ────────*/
@@ -265,7 +265,7 @@ function renderFeedback(r){
 
   // For attempt 2-3: highlight whether old mistakes were repeated
   if (attempt >= 2 && r.repeated_errors_vi) {
-    html += '<div class="aw-fb-block" style="border-left:3px solid var(--aw-accent);background:#FFF8EC"><h4>⚠ Lỗi lặp lại từ lần trước</h4><div class="aw-fb-item">'+AW.esc(r.repeated_errors_vi)+'</div></div>';
+    html += '<div class="aw-fb-block" style="border-left:3px solid var(--aw-accent);background:#FFF8EC"><h4>⚠ Repeated errors from last attempt</h4><div class="aw-fb-item">'+AW.esc(r.repeated_errors_vi)+'</div></div>';
   }
 
   // Overall feedback — always full
@@ -342,11 +342,11 @@ async function gradeWithGemini(payload, geminiKey){
   var data=await resp.json();
   var raw=(((data.candidates||[])[0]||{}).content||{}).parts;
   raw=raw&&raw[0]?raw[0].text:'';
-  if(!raw) throw new Error('Gemini trả về rỗng. Thử lại.');
+  if(!raw) throw new Error('Gemini returned empty. Try again.');
   var clean=raw.replace(/<thinking>[\s\S]*?<\/thinking>/gi,'').replace(/```json\s*/gi,'').replace(/```\s*/g,'').trim();
   var si=clean.indexOf('{'),depth=0,ei=-1;
   for(var ci=si;ci<clean.length;ci++){if(clean[ci]==='{')depth++;else if(clean[ci]==='}'){depth--;if(depth===0){ei=ci;break;}}}
-  if(si===-1||ei===-1) throw new Error('Không đọc được JSON từ Gemini.');
+  if(si===-1||ei===-1) throw new Error('Could not parse JSON from Gemini.');
   return applyBoost(JSON.parse(clean.substring(si,ei+1)));
 }
 </script>

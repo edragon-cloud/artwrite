@@ -62,16 +62,34 @@
   .aw-prompt-edit{min-height:120px;border:1px solid var(--aw-border);border-radius:0 0 var(--aw-r-sm) var(--aw-r-sm);padding:12px 14px;font-family:var(--aw-font-body);font-size:.95rem;line-height:1.6;outline:none;overflow-y:auto}
   .aw-prompt-edit:focus{border-color:var(--aw-primary)}
   /* wide results table */
+  .aw-res-wrap{border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(10,58,93,.08);border:1px solid var(--aw-border-2)}
   .aw-res-table{width:100%;border-collapse:collapse;font-size:.85rem;white-space:nowrap}
-  .aw-res-table th,.aw-res-table td{border:1px solid var(--aw-border-2);padding:8px 10px;text-align:center}
-  .aw-res-table thead tr:first-child th{background:var(--aw-primary);color:#fff;font-family:var(--aw-font-display);font-size:.8rem}
-  .aw-res-table thead tr:nth-child(2) th{background:var(--aw-surface-2);color:var(--aw-ink-2);font-size:.72rem;font-weight:600}
-  .aw-res-table td.sticky,.aw-res-table th.sticky{position:sticky;left:0;background:var(--aw-surface);z-index:2;text-align:left}
-  .aw-res-table tbody tr:hover td{background:var(--aw-surface-2)}
-  .aw-res-overall{font-weight:700;cursor:help;position:relative;display:inline-block;padding:2px 8px;border-radius:6px}
+  .aw-res-table th,.aw-res-table td{border:1px solid #EEF2F6;padding:9px 11px;text-align:center}
+  .aw-res-table thead tr:first-child th{background:linear-gradient(135deg,#0A6EBD,#1A5F9E);color:#fff;font-family:var(--aw-font-display);font-size:.82rem;padding:12px 11px}
+  .aw-res-table thead tr:nth-child(2) th{font-size:.7rem;font-weight:700;letter-spacing:.02em}
+  /* colored column groups */
+  .grp-1{background:#EAF2FB}   /* First - blue */
+  .grp-2{background:#EEEBFA}   /* Second - purple */
+  .grp-3{background:#E9F5EE}   /* Third - green */
+  .grp-best{background:#FEF6E3} /* Best - amber */
+  .hd-1{background:#3E7CC4 !important} .hd-2{background:#6B5FC4 !important}
+  .hd-3{background:#3EA96B !important} .hd-best{background:#E0A32E !important}
+  .aw-res-table td.sticky,.aw-res-table th.sticky{position:sticky;left:0;background:#fff;z-index:2;text-align:left}
+  .aw-res-table thead th.sticky{background:linear-gradient(135deg,#0A6EBD,#1A5F9E)}
+  .aw-res-table tbody tr:hover td{filter:brightness(.98)}
+  .aw-res-overall{font-weight:800;cursor:help;position:relative;display:inline-block;padding:6px 12px;border-radius:10px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:1rem}
+  .aw-res-overall small{display:block;font-size:.6rem;color:var(--aw-ink-3);font-weight:600}
   .aw-res-overall:hover .aw-res-pop{display:block}
   .aw-res-pop{display:none;position:absolute;bottom:130%;left:50%;transform:translateX(-50%);background:var(--aw-primary-dk);color:#fff;padding:8px 12px;border-radius:8px;font-size:.75rem;font-weight:500;white-space:nowrap;z-index:10;box-shadow:var(--aw-shadow-lg)}
   .aw-res-pop:after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--aw-primary-dk)}
+  .aw-view-btn{background:var(--aw-primary-lt);color:var(--aw-primary);border:none;border-radius:8px;padding:5px 10px;font-size:.75rem;font-weight:600;cursor:pointer}
+  .aw-view-btn:hover{background:var(--aw-primary);color:#fff}
+  .aw-essay-bg{position:fixed;inset:0;background:rgba(16,34,46,.55);z-index:600;display:none;align-items:flex-start;justify-content:center;padding:30px 20px;overflow-y:auto}
+  .aw-essay-bg.show{display:flex}
+  .aw-essay-modal{background:#fff;border-radius:16px;width:100%;max-width:760px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:26px}
+  .aw-essay-modal .rv-block{margin-top:14px;padding-top:14px;border-top:1px solid var(--aw-border-2)}
+  .aw-essay-modal .rv-block h4{color:var(--aw-primary);margin:0 0 6px;font-size:.85rem;text-transform:uppercase}
+  .aw-essay-modal .rv-block p{margin:0 0 6px;line-height:1.55;font-size:.9rem;color:var(--aw-ink-2)}
 </style>
 </head>
 <body>
@@ -96,11 +114,11 @@
         <button class="aw-tbtn" id="annComment" title="Comment">💬</button>
       </div>
       <div class="aw-doc-text" id="mText" contenteditable="false"></div>
-      <p style="font-size:.78rem;color:var(--aw-ink-3);margin:10px 0 0">Bôi đen văn bản rồi dùng bộ nút trên để gợi ý sửa, highlight hoặc comment. Khi xong, bấm <b>Push to Student</b> để SV thấy nhận xét.</p>
+      <p style="font-size:.78rem;color:var(--aw-ink-3);margin:10px 0 0">Select text then use the toolbar to suggest edits, highlight or comment. When done, click <b>Push to Student</b> so students can see your feedback.</p>
     </div>
     <div class="aw-modal-side">
       <h4>Teacher Suggestions</h4>
-      <p style="font-size:.8rem;color:var(--aw-ink-3);margin:0 0 12px">Gạch đỏ = sai · Xanh = gợi ý sửa</p>
+      <p style="font-size:.8rem;color:var(--aw-ink-3);margin:0 0 12px">Red strike = error · Green = suggested fix</p>
       <div class="aw-suggest-list" id="suggestList"></div>
       <h4>Scoring (IELTS)</h4>
       <div class="aw-score-input"><label>TR</label><input type="number" id="sTR" min="0" max="9" step="0.5"></div>
@@ -114,6 +132,8 @@
   </div>
 </div>
 
+<div class="aw-essay-bg" id="essayModal"><div class="aw-essay-modal" id="essayModalBody"></div></div>
+
 <div class="aw-sel-pop" id="selPop">
   <button id="popSuggest">✎ Suggest</button>
   <button id="popStrike">S̶ Strike</button>
@@ -125,7 +145,7 @@
 <div class="aw-modal-bg" id="assignModal">
   <div class="aw-amodal">
     <h2 id="assignTitle">New Homework</h2>
-    <p class="aw-auth-sub" style="margin:0 0 18px" id="assignSub">Giao bài cho lớp đang chọn.</p>
+    <p class="aw-auth-sub" style="margin:0 0 18px" id="assignSub">Assign to the selected class.</p>
     <div class="aw-field"><label class="aw-label">Topic / Title</label>
       <input class="aw-input" id="aTopic" placeholder="VD: Day 1 — Advertising essay"></div>
     <div class="aw-field"><label class="aw-label">Prompt / Instructions</label>
@@ -135,7 +155,7 @@
         <button type="button" data-c="underline"><u>U</u></button>
         <button type="button" data-c="insertUnorderedList">•</button>
       </div>
-      <div class="aw-prompt-edit" id="aPrompt" contenteditable="true" data-ph="Nhập đề bài, yêu cầu, tiêu chí… (xuống hàng & format thoải mái)"></div>
+      <div class="aw-prompt-edit" id="aPrompt" contenteditable="true" data-ph="Enter the prompt, requirements, criteria… (line breaks & formatting supported)"></div>
     </div>
     <div class="aw-row" style="display:flex;gap:12px">
       <div class="aw-field" style="flex:1" id="reqField"><label class="aw-label">Required revisions</label>
@@ -183,7 +203,7 @@ var content = AW.renderShell({
   mount:'app', nav:nav, eyebrow:'Teacher Dashboard Interface', title:'Class Overview',
   onNav:function(id){
     stopLivePoll();
-    if(!curClass() && id!=='settings'){ AW.toast('Tạo hoặc chọn một lớp trước.','err'); showClasses(); AW.setActiveNav('overview'); return; }
+    if(!curClass() && id!=='settings'){ AW.toast('Create or select a class first.','err'); showClasses(); AW.setActiveNav('overview'); return; }
     if(id==='overview') showOverview();
     else if(id==='live') showLive();
     else if(id==='assignments') showAssignments();
@@ -231,7 +251,7 @@ function showClasses(){
   document.getElementById('awPageTitle').textContent='My Classes';
   if(!myClasses.length){
     content.innerHTML='<div class="aw-empty">'+AW.icon('overview')+
-      '<p>Bạn chưa có lớp nào. Tạo lớp đầu tiên để bắt đầu.</p>'+
+      '<p>You have no classes yet. Create your first class to begin.</p>'+
       '<button class="aw-btn aw-btn-primary" style="margin-top:14px" onclick="showCreateClass()">+ Create New Class</button></div>';
     return;
   }
@@ -240,21 +260,21 @@ function showClasses(){
       '<h3 class="aw-lib-title">'+AW.esc(c.className)+'</h3>'+
       '<span class="aw-tag aw-tag-type">'+AW.esc(c.classId)+'</span> '+
       '<span class="aw-tag aw-tag-medium">'+AW.esc(c.year||'')+(c.semester?' · HK'+AW.esc(c.semester):'')+'</span>'+
-      '<p class="aw-lib-desc">Mã lớp chia sẻ cho sinh viên: <b>'+AW.esc(c.classId)+'</b></p></div>';
+      '<p class="aw-lib-desc">Class code to share with students: <b>'+AW.esc(c.classId)+'</b></p></div>';
   }).join('')+'</div>';
 }
 window.pickClass=function(id){ setCurClass(id); location.reload(); };
 
 window.showCreateClass=function(){
-  var name=prompt('Tên lớp (VD: IELTS Writing 01):'); if(!name)return;
-  var year=prompt('Năm học (VD: 2026-2027):','2026-2027')||'';
-  var sem=prompt('Học kỳ (1, 2 hoặc 3):','2')||'';
+  var name=prompt('Class name (e.g. IELTS Writing 01):'); if(!name)return;
+  var year=prompt('Academic year (e.g. 2026-2027):','2026-2027')||'';
+  var sem=prompt('Semester (1, 2 or 3):','2')||'';
   AW.api('class.create',{className:name,year:year,semester:sem,teacherEmail:sess.email}).then(function(res){
     if(res&&res.success){
-      AW.toast('Đã tạo lớp · Mã: '+res.data.classId,'ok',4000);
+      AW.toast('Class created · Code: '+res.data.classId,'ok',4000);
       setCurClass(res.data.classId);
       setTimeout(function(){location.reload();},800);
-    } else AW.toast((res&&res.error)||'Tạo lớp thất bại','err');
+    } else AW.toast((res&&res.error)||'Failed to create class','err');
   });
 };
 
@@ -305,7 +325,7 @@ function loadRoster(){
     var cnt=document.getElementById('rosterCount');
     if(!box)return;
     if(cnt)cnt.textContent='('+rows.length+' students)';
-    if(!rows.length){box.innerHTML='<p style="color:var(--aw-ink-3);font-size:.88rem">Chưa có sinh viên nào đăng ký lớp này. Chia sẻ mã lớp <b>'+AW.esc(curClass())+'</b> cho sinh viên.</p>';return;}
+    if(!rows.length){box.innerHTML='<p style="color:var(--aw-ink-3);font-size:.88rem">No students have joined this class yet. Share class code <b>'+AW.esc(curClass())+'</b> with students.</p>';return;}
     box.innerHTML=rows.map(function(s){
       return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--aw-border-2);font-size:.88rem">'+
         '<span><b>'+AW.esc(s.studentId)+'</b> · '+AW.esc(s.name||'')+'</span>'+
@@ -321,12 +341,12 @@ function showLive(){
   // load inclass assignments for filter
   AW.api('write.getAssignments',{class:curClass(),mode:'inclass'}).then(function(res){
     var tasks=(res&&res.data)||[];
-    var taskOpts='<option value="all">Tất cả bài In-class</option>'+
+    var taskOpts='<option value="all">All in-class tasks</option>'+
       tasks.map(function(t){return '<option value="'+AW.esc(t.topicId)+'">'+AW.esc(t.topic)+'</option>';}).join('');
     content.innerHTML=
       '<div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap">'+
         '<select class="aw-select" id="liveTaskSel">'+taskOpts+'</select>'+
-        '<span style="font-size:.82rem;color:var(--aw-ink-3)">Poll mỗi 6s · Click vào SV để xem bài & sửa</span>'+
+        '<span style="font-size:.82rem;color:var(--aw-ink-3)">Polls every 6s · Click a student to view & annotate</span>'+
       '</div>'+
       '<div class="aw-live-wrap">' +
         '<div><div id="liveGrid" class="aw-live-grid"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div></div>' +
@@ -351,7 +371,7 @@ function renderLive(){
   var filtered = (liveTaskFilter==='all') ? liveData :
     liveData.filter(function(s){ return String(s.topicId)===String(liveTaskFilter); });
   if(!filtered.length){
-    grid.innerHTML='<div class="aw-empty">'+AW.icon('live')+'<p>Chưa có sinh viên nào đang làm In-class Practice. Hãy tạo bài In-class trước.</p></div>';
+    grid.innerHTML='<div class="aw-empty">'+AW.icon('live')+'<p>No students are currently doing In-class Practice. Create an in-class task first.</p></div>';
     document.getElementById('liveStats').innerHTML='';return;
   }
   var counts={Writing:0,Idle:0,Offline:0,Submitted:0};
@@ -397,7 +417,7 @@ function openAnnotation(s){
   document.getElementById('mTopic').textContent=s.topic?('· '+s.topic):'';
   mText.textContent=s.snapshot||'(chưa có nội dung)';
   mText.setAttribute('contenteditable','true');
-  document.getElementById('suggestList').innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">Chưa có đề xuất nào.</p>';
+  document.getElementById('suggestList').innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">Chưa có đề xuất assignments yet.</p>';
   ['sTR','sCC','sLR','sGRA','sOverall'].forEach(function(id){document.getElementById(id).value='';});
   document.getElementById('modalBg').classList.add('show');
   // wire toolbar buttons to trigger same actions as popup
@@ -429,8 +449,8 @@ document.getElementById('pushFb').onclick=function(){
     annotatedHtml: mText.innerHTML,
     tr:'', cc:'', lr:'', gra:'', note:'push', teacherGrading:''
   }).then(function(res){
-    if(res&&res.success) AW.toast('Đã gửi nhận xét tới sinh viên','ok');
-    else AW.toast('Gửi thất bại','err');
+    if(res&&res.success) AW.toast('Feedback pushed to student','ok');
+    else AW.toast('Failed to send','err');
   }).finally(function(){ btn.disabled=false; btn.innerHTML=o; });
 };
 document.getElementById('mClose').onclick=function(){
@@ -514,7 +534,7 @@ function recordSuggestion(orig,sug,type){
 }
 function renderSuggestions(){
   var box=document.getElementById('suggestList');
-  if(!currentAnnot.suggestions.length){box.innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">Chưa có đề xuất nào.</p>';return;}
+  if(!currentAnnot.suggestions.length){box.innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">Chưa có đề xuất assignments yet.</p>';return;}
   var labels={edit:'→',strike:'✕ delete',highlight:'🖍',comment:'💬'};
   box.innerHTML=currentAnnot.suggestions.map(function(s,i){
     var mid = s.type==='edit' ? ' → <span class="sug">'+AW.esc(s.suggestion)+'</span>'
@@ -552,14 +572,33 @@ function showResults(){
       '<button class="aw-tab" data-mode="inclass">In-Class Practice</button>' +
       '<button class="aw-tab" data-mode="homework">Homework</button>' +
     '</div>' +
-    '<div class="aw-toolbar"><div class="aw-search">'+AW.icon('search')+
-      '<input id="resSearch" placeholder="Search student, ID, topic…"></div>'+
-      '<span id="resCount" style="color:var(--aw-ink-3);font-size:.85rem"></span></div>'+
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px">'+
+      '<select class="aw-select" id="fClass"><option value="">All classes</option></select>'+
+      '<select class="aw-select" id="fTopic"><option value="">All topics</option></select>'+
+      '<div class="aw-search" style="flex:1;min-width:200px">'+AW.icon('search')+'<input id="resSearch" placeholder="Name / Student ID…"></div>'+
+      '<select class="aw-select" id="fSort">'+
+        '<option value="name">Sort: Name</option>'+
+        '<option value="studentId">Sort: Student ID</option>'+
+        '<option value="bestResult">Sort: Best band</option>'+
+        '<option value="attemptCount">Sort: Attempts</option>'+
+      '</select>'+
+      '<button class="aw-btn aw-btn-ghost" id="clearFilters" style="padding:8px 14px">Clear</button>'+
+      '<span id="resCount" style="color:var(--aw-ink-3);font-size:.85rem"></span>'+
+    '</div>'+
     '<div id="resultsBox"></div>';
   AW.els('.aw-tab').forEach(function(t){
     t.onclick=function(){AW.els('.aw-tab').forEach(function(x){x.classList.remove('active');});t.classList.add('active');loadResults(t.dataset.mode);};
   });
-  document.getElementById('resSearch').oninput=function(){ renderResults(this.value); };
+  document.getElementById('resSearch').oninput=function(){ renderResults(); };
+  document.getElementById('fClass').onchange=function(){ renderResults(); };
+  document.getElementById('fTopic').onchange=function(){ renderResults(); };
+  document.getElementById('fSort').onchange=function(){ resultsSort.key=this.value; renderResults(); };
+  document.getElementById('clearFilters').onclick=function(){
+    document.getElementById('resSearch').value='';
+    document.getElementById('fClass').value='';
+    document.getElementById('fTopic').value='';
+    renderResults();
+  };
   loadResults('free');
 }
 function loadResults(mode){
@@ -567,80 +606,103 @@ function loadResults(mode){
   box.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
   AW.api('teacher.getResults',{class:curClass(),mode:mode}).then(function(res){
     resultsData=(res&&res.data)||[];
-    renderResults('');
+    // populate class + topic filters
+    var classes={}, topics={};
+    resultsData.forEach(function(g){ if(g.className||g.class)classes[g.className||g.class]=1; if(g.topic)topics[g.topic]=1; });
+    var fc=document.getElementById('fClass'); if(fc){fc.innerHTML='<option value="">All classes</option>'+Object.keys(classes).map(function(c){return '<option>'+AW.esc(c)+'</option>';}).join('');}
+    var ft=document.getElementById('fTopic'); if(ft){ft.innerHTML='<option value="">All topics</option>'+Object.keys(topics).map(function(t){return '<option>'+AW.esc(t)+'</option>';}).join('');}
+    renderResults();
   });
 }
-function scoreCell(w){
-  if(!w) return '<td>—</td>';
+function scoreCell(w,grpClass){
+  if(!w) return '<td class="'+(grpClass||'')+'">—</td>';
   var o=w.overall||w.teacher||'—';
   var pop='TR '+(w.tr||'—')+' · CC '+(w.cc||'—')+' · LR '+(w.lr||'—')+' · GRA '+(w.gra||'—');
-  return '<td><span class="aw-res-overall '+AW.scoreClass(o)+'">'+o+'<span class="aw-res-pop">'+pop+'</span></span></td>';
+  return '<td class="'+(grpClass||'')+'"><span class="aw-res-overall">'+o+'<small>/9</small><span class="aw-res-pop">'+pop+'</span></span></td>';
 }
-function timeCells(w){
-  if(!w) return '<td>—</td><td>—</td><td>—</td>';
+function timeCells(w,grpClass){
+  var cl=grpClass||'';
+  if(!w) return '<td class="'+cl+'">—</td><td class="'+cl+'">—</td><td class="'+cl+'">—</td>';
   function t(x){ if(!x)return '—'; var d=new Date(x); return isNaN(d)?x:(d.getHours()+':'+String(d.getMinutes()).padStart(2,'0')); }
   function dur(s){ if(!s)return '—'; s=parseInt(s,10); if(isNaN(s))return '—'; var m=Math.floor(s/60); return m>=60?(Math.floor(m/60)+'h'+(m%60)+'m'):(m+'m'); }
-  return '<td>'+t(w.startTime)+'</td><td>'+t(w.finishTime)+'</td><td>'+dur(w.duration)+'</td>';
+  return '<td class="'+cl+'">'+t(w.startTime)+'</td><td class="'+cl+'">'+t(w.finishTime)+'</td><td class="'+cl+'">'+dur(w.duration)+'</td>';
 }
-function renderResults(q){
+function renderResults(){
   var box=document.getElementById('resultsBox'); if(!box)return;
-  q=(q||'').toLowerCase();
+  var q=(document.getElementById('resSearch')?document.getElementById('resSearch').value:'').toLowerCase();
+  var fClass=document.getElementById('fClass')?document.getElementById('fClass').value:'';
+  var fTopic=document.getElementById('fTopic')?document.getElementById('fTopic').value:'';
   var rows=resultsData.filter(function(g){
-    if(!q)return true;
-    return (g.name+' '+g.studentId+' '+g.topic+' '+(g.className||g.class)).toLowerCase().indexOf(q)>-1;
+    if(fClass && (g.className||g.class)!==fClass) return false;
+    if(fTopic && g.topic!==fTopic) return false;
+    if(q && (g.name+' '+g.studentId).toLowerCase().indexOf(q)===-1) return false;
+    return true;
   });
-  var cnt=document.getElementById('resCount'); if(cnt)cnt.textContent=rows.length+' rows';
+  var cnt=document.getElementById('resCount'); if(cnt)cnt.textContent=rows.length+' results';
   if(!rows.length){box.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>No results in this mode yet.</p></div>';return;}
   rows.sort(function(a,b){
-    var k=resultsSort.key, av=(a[k]||'').toString().toLowerCase(), bv=(b[k]||'').toString().toLowerCase();
-    return av<bv?-resultsSort.dir:av>bv?resultsSort.dir:0;
+    var k=resultsSort.key;
+    if(k==='bestResult'||k==='attemptCount'){ return (parseFloat(b[k])||0)-(parseFloat(a[k])||0); }
+    var av=(a[k]||'').toString().toLowerCase(), bv=(b[k]||'').toString().toLowerCase();
+    return av<bv?-1:av>bv?1:0;
   });
-  // 3 writes + Best write + Attempts summary
-  var writeLabels=['First Write','Second Write','Third Write','Best Write'];
-  var top='<tr><th class="sticky" rowspan="2" data-sort="studentId">Student ID</th>'+
-    '<th rowspan="2" data-sort="name">Name</th><th rowspan="2" data-sort="className">Class</th>'+
-    '<th rowspan="2" data-sort="topic">Topic</th>';
-  writeLabels.forEach(function(l){ top+='<th colspan="4">'+l+'</th>'; });
-  top+='<th rowspan="2" data-sort="bestResult">Attempts</th></tr><tr>';
-  writeLabels.forEach(function(){ top+='<th>Start</th><th>Finish</th><th>Dur</th><th>Result</th>'; });
+  var writeLabels=[['First Write','grp-1','hd-1'],['Second Write','grp-2','hd-2'],['Third Write','grp-3','hd-3'],['★ Best Write','grp-best','hd-best']];
+  var top='<tr><th class="sticky" rowspan="2">Student ID</th>'+
+    '<th rowspan="2">Name</th><th rowspan="2">Class</th><th rowspan="2">Topic</th>';
+  writeLabels.forEach(function(l){ top+='<th colspan="4" class="'+l[2]+'">'+l[0]+'</th>'; });
+  top+='<th rowspan="2" class="hd-best">Attempts</th></tr><tr>';
+  writeLabels.forEach(function(l){ top+='<th class="'+l[1]+'">Start</th><th class="'+l[1]+'">Finish</th><th class="'+l[1]+'">Dur</th><th class="'+l[1]+'">Result</th>'; });
   top+='</tr>';
 
   var body=rows.map(function(g,gi){
     var w=g.writes||[];
-    // best write = highest overall
-    var best=null,bestIdx=-1;
-    w.forEach(function(x,xi){var v=parseFloat(x.overall);if(!isNaN(v)&&(best===null||v>parseFloat(best.overall))){best=x;bestIdx=xi;}});
+    var best=null;
+    w.forEach(function(x){var v=parseFloat(x.overall);if(!isNaN(v)&&(best===null||v>parseFloat(best.overall)))best=x;});
+    var groups=['grp-1','grp-2','grp-3','grp-best'];
     var picks=[ w[0], w[1], w[2], best ];
-    // attempts summary cell
     var vals=w.map(function(x){return parseFloat(x.overall);}).filter(function(v){return !isNaN(v);});
     var avg=vals.length?(vals.reduce(function(a,b){return a+b;},0)/vals.length).toFixed(1):'—';
     var bestVal=best?best.overall:'—';
-    var improve = (vals.length>=2)? (vals[vals.length-1]-vals[0]).toFixed(1) : null;
-    var impBadge = improve!==null ? (parseFloat(improve)>=0?'<span style="color:var(--aw-writing)">▲ +'+improve+'</span>':'<span style="color:var(--aw-danger)">▼ '+improve+'</span>') : '';
-    var attemptsCell='<div style="font-size:.8rem;line-height:1.5">'+
-      '<div><b>'+w.length+'/3</b> lần</div>'+
+    var improve=(vals.length>=2)?(vals[vals.length-1]-vals[0]).toFixed(1):null;
+    var impBadge=improve!==null?(parseFloat(improve)>=0?'<span style="color:var(--aw-writing)">▲ +'+improve+'</span>':'<span style="color:var(--aw-danger)">▼ '+improve+'</span>'):'';
+    var attemptsCell='<div style="font-size:.8rem;line-height:1.6" class="grp-best">'+
+      '<div><b>'+w.length+'/3</b> attempts</div>'+
       '<div>Best: <b style="color:var(--aw-primary)">'+bestVal+'</b></div>'+
-      '<div>Avg: '+avg+'</div>'+
-      (impBadge?'<div>'+impBadge+'</div>':'')+'</div>';
-
+      '<div>Avg: '+avg+'</div>'+(impBadge?'<div>'+impBadge+'</div>':'')+'</div>';
+    var topicCell='<td style="text-align:left;white-space:normal;max-width:170px"><b>'+AW.esc(g.topic||'')+'</b>'+
+      (w.length?'<br><button class="aw-view-btn" onclick="viewEssays('+gi+')">📄 View essays</button>':'')+'</td>';
     var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+'</td>'+
-      '<td>'+AW.esc(g.className||g.class||'')+'</td><td style="text-align:left;white-space:normal;max-width:170px">'+AW.esc(g.topic||'')+'</td>';
-    picks.forEach(function(p,pi){ tds+=timeCells(p)+scoreCell(p,gi,pi); });
-    tds+='<td>'+attemptsCell+'</td>';
-    return '<tr>'+tds+'</tr>';
+      '<td>'+AW.esc(g.className||g.class||'')+'</td>'+topicCell;
+    picks.forEach(function(p,pi){ tds+=timeCells(p,groups[pi])+scoreCell(p,groups[pi]); });
+    tds+='<td class="grp-best">'+attemptsCell+'</td>';
+    return '<tr data-gi="'+gi+'">'+tds+'</tr>';
   }).join('');
 
-  box.innerHTML='<div class="aw-table-wrap" style="overflow-x:auto"><table class="aw-res-table"><thead>'+top+'</thead><tbody>'+body+'</tbody></table></div>';
-  AW.els('[data-sort]').forEach(function(th){
-    th.style.cursor='pointer';
-    th.onclick=function(){
-      var k=th.dataset.sort;
-      resultsSort.dir = (resultsSort.key===k)? -resultsSort.dir : 1;
-      resultsSort.key=k;
-      renderResults(document.getElementById('resSearch').value);
-    };
-  });
+  box.innerHTML='<div class="aw-res-wrap" style="overflow-x:auto"><table class="aw-res-table"><thead>'+top+'</thead><tbody>'+body+'</tbody></table></div>';
 }
+// view all essays + feedback for one student-topic group
+window.viewEssays=function(gi){
+  var g=resultsData[gi]; if(!g)return;
+  var w=g.writes||[];
+  var body='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'+
+    '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.25rem">'+AW.esc(g.name||g.studentId)+' — '+AW.esc(g.topic||'')+'</h2>'+
+    '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="closeEssayModal()">Close</button></div>';
+  body+=w.map(function(x,i){
+    var fb=null; try{ fb=x.feedback?JSON.parse(x.feedback):null; }catch(e){}
+    var head='<div class="rv-block"><h4>Attempt '+(i+1)+' — Band '+(x.overall||'—')+' '+
+      '(TR '+(x.tr||'—')+' · CC '+(x.cc||'—')+' · LR '+(x.lr||'—')+' · GRA '+(x.gra||'—')+')</h4>';
+    var essay=x.essay?'<div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;background:var(--aw-surface-2);padding:12px;border-radius:8px">'+AW.esc(x.essay)+'</div>':'<p style="color:var(--aw-ink-3)">No essay text.</p>';
+    var fbHtml='';
+    if(fb){
+      if(fb.overall_feedback_vi) fbHtml+='<p style="margin-top:8px"><b>Overall:</b> '+AW.esc(fb.overall_feedback_vi)+'</p>';
+      if((fb.gra_errors||[]).length) fbHtml+='<p><b>Grammar:</b> '+fb.gra_errors.slice(0,5).map(function(e){return AW.esc(e.wrong)+'→'+AW.esc(e.correct);}).join('; ')+'</p>';
+    }
+    return head+essay+fbHtml+'</div>';
+  }).join('');
+  document.getElementById('essayModalBody').innerHTML=body;
+  document.getElementById('essayModal').classList.add('show');
+};
+window.closeEssayModal=function(){document.getElementById('essayModal').classList.remove('show');};
 
 /*═══════════ ASSIGNMENTS ═══════════*/
 function showAssignments(){
@@ -670,7 +732,7 @@ function loadAssignmentList(mode){
     var box=document.getElementById('assignList');
     if(!box)return;
     if(!rows.length){
-      box.innerHTML='<div class="aw-empty">'+AW.icon('modes')+'<p>Chưa có bài tập '+(mode==='inclass'?'In-class':'Homework')+' nào.</p></div>';
+      box.innerHTML='<div class="aw-empty">'+AW.icon('modes')+'<p>No '+(mode==='inclass'?'In-class':'Homework')+' assignments yet.</p></div>';
       return;
     }
     box.innerHTML='<div class="aw-table-wrap"><table class="aw-table"><thead><tr>'+
@@ -678,7 +740,7 @@ function loadAssignmentList(mode){
       rows.map(function(a){
         var plain=AW.stripHtml?AW.stripHtml(a.prompt||''):(a.prompt||'').replace(/<[^>]*>/g,'');
         return '<tr><td><b>'+AW.esc(a.topic)+'</b><br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(plain.slice(0,80))+'</span></td>'+
-          '<td>'+AW.esc(a.class||curClass())+'</td>'+
+          '<td>'+AW.esc((curClassObj()&&curClassObj().className)||a.class||curClass())+'</td>'+
           '<td style="text-align:center">'+(a.requiredAttempts||1)+'</td>'+
           '<td>'+(a.deadline?AW.esc(a.deadline):'—')+'</td></tr>';
       }).join('')+'</tbody></table></div>';
@@ -703,7 +765,7 @@ document.getElementById('aCancel').onclick=function(){ document.getElementById('
 document.getElementById('aCreate').onclick=function(){
   var topic=document.getElementById('aTopic').value.trim();
   var promptHtml=document.getElementById('aPrompt').innerHTML.trim();
-  if(!topic){AW.toast('Nhập tên bài.','err');return;}
+  if(!topic){AW.toast('Enter a topic.','err');return;}
   var btn=this; btn.disabled=true; var o=btn.textContent; btn.innerHTML='<span class="aw-spin"></span>';
   AW.api('teacher.createAssignment',{
     class:curClass(), mode:assignMode, topic:topic, prompt:promptHtml,
@@ -711,8 +773,8 @@ document.getElementById('aCreate').onclick=function(){
     durationMin:assignMode==='inclass'?parseInt(document.getElementById('aDur').value||'0',10):'',
     deadline:assignMode==='homework'?document.getElementById('aDead').value:''
   }).then(function(res){
-    if(res&&res.success){AW.toast('Đã tạo & giao bài','ok');document.getElementById('assignModal').classList.remove('show');showAssignments();}
-    else AW.toast('Tạo thất bại','err');
+    if(res&&res.success){AW.toast('Assignment created & assigned','ok');document.getElementById('assignModal').classList.remove('show');showAssignments();}
+    else AW.toast('Failed to create','err');
   }).finally(function(){ btn.disabled=false; btn.textContent=o; });
 };
 
@@ -729,21 +791,21 @@ function showSettings(){
     '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">My Classes</h3>'+
     '<button class="aw-btn aw-btn-primary" style="padding:7px 14px" onclick="showCreateClass()">+ New Class</button></div>'+
-    (myClasses.length?'<div class="aw-table-wrap"><table class="aw-table"><thead><tr><th>Class Name</th><th>Class Code</th><th>Year</th><th>Semester</th></tr></thead><tbody>'+clsRows+'</tbody></table></div>':'<p style="color:var(--aw-ink-3)">Chưa có lớp nào.</p>')+
+    (myClasses.length?'<div class="aw-table-wrap"><table class="aw-table"><thead><tr><th>Class Name</th><th>Class Code</th><th>Year</th><th>Semester</th></tr></thead><tbody>'+clsRows+'</tbody></table></div>':'<p style="color:var(--aw-ink-3)">No classes yet.</p>')+
     '</div>'+
     '<div class="aw-card" style="padding:24px;max-width:600px">'+
       '<h3 style="margin:0 0 14px">Change Password</h3>'+
-      '<div class="aw-field"><label class="aw-label">Mật khẩu hiện tại</label><input class="aw-input" id="tpwOld" type="password"></div>'+
-      '<div class="aw-field"><label class="aw-label">Mật khẩu mới</label><input class="aw-input" id="tpwNew" type="password"></div>'+
-      '<div class="aw-field"><label class="aw-label">Xác nhận</label><input class="aw-input" id="tpwNew2" type="password"></div>'+
+      '<div class="aw-field"><label class="aw-label">Current password</label><input class="aw-input" id="tpwOld" type="password"></div>'+
+      '<div class="aw-field"><label class="aw-label">New password</label><input class="aw-input" id="tpwNew" type="password"></div>'+
+      '<div class="aw-field"><label class="aw-label">Confirm</label><input class="aw-input" id="tpwNew2" type="password"></div>'+
       '<button class="aw-btn aw-btn-primary" id="tpwBtn">Update password</button>'+
     '</div>';
   document.getElementById('tpwBtn').onclick=function(){
     var o=document.getElementById('tpwOld').value, n=document.getElementById('tpwNew').value, n2=document.getElementById('tpwNew2').value;
-    if(!o||!n){AW.toast('Nhập đầy đủ.','err');return;}
-    if(n!==n2){AW.toast('Mật khẩu mới không khớp.','err');return;}
+    if(!o||!n){AW.toast('Please fill all fields.','err');return;}
+    if(n!==n2){AW.toast('New passwords do not match.','err');return;}
     AW.api('auth.changePassword',{email:sess.email,oldPass:o,newPass:n}).then(function(res){
-      if(res&&res.success)AW.toast('Đã đổi mật khẩu','ok');
+      if(res&&res.success)AW.toast('Password changed','ok');
       else AW.toast((res&&res.error)||'Thất bại','err');
     });
   };
