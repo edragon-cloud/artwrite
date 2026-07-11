@@ -336,9 +336,10 @@ function loadRoster(){
     if(cnt)cnt.textContent='('+rows.length+' students)';
     if(!rows.length){box.innerHTML='<p style="color:var(--aw-ink-3);font-size:.88rem">No students have joined this class yet. Share class code <b>'+AW.esc(curClass())+'</b> with students.</p>';return;}
     box.innerHTML=rows.map(function(s){
-      return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--aw-border-2);font-size:.88rem">'+
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--aw-border-2);font-size:.88rem">'+
         '<span><b>'+AW.esc(s.studentId)+'</b> · '+AW.esc(s.name||'')+'</span>'+
-        '<span style="color:var(--aw-ink-3)">'+AW.esc(s.email||'')+'</span></div>';
+        '<span style="display:flex;gap:8px;align-items:center"><span style="color:var(--aw-ink-3)">'+AW.esc(s.email||'')+'</span>'+
+        '<button class="aw-btn aw-btn-ghost" style="padding:3px 9px;font-size:.72rem;color:var(--aw-danger)" onclick="archiveStudent(\''+AW.esc(s.studentId)+'\',\''+AW.esc(s.name||'')+'\')">Archive</button></span></div>';
     }).join('');
   });
 }
@@ -722,7 +723,29 @@ function renderResults(){
     cell.title='Click to view this attempt';
     cell.onclick=function(){ viewEssays(+cell.dataset.openGi, +cell.dataset.openWi); };
   });
-  // manual score save
+  // manual score save + auto-average overall (IELTS rounding)
+  function ieltsRound(avg){
+    // round to nearest 0.5 band (IELTS convention)
+    var whole=Math.floor(avg), frac=avg-whole;
+    if(frac<0.25) return whole;
+    if(frac<0.75) return whole+0.5;
+    return whole+1;
+  }
+  AW.els('.grp-best').forEach(function(cell){
+    var critInputs=cell.querySelectorAll('.ms-in[data-f="tr"],.ms-in[data-f="cc"],.ms-in[data-f="lr"],.ms-in[data-f="gra"]');
+    var overallInput=cell.querySelector('.ms-in[data-f="overall"]');
+    if(!overallInput)return;
+    critInputs.forEach(function(inp){
+      inp.oninput=function(){
+        var nums=[];
+        critInputs.forEach(function(x){var v=parseFloat(x.value);if(!isNaN(v))nums.push(v);});
+        if(nums.length===4){
+          var avg=nums.reduce(function(a,b){return a+b;},0)/4;
+          overallInput.value=ieltsRound(avg);
+        }
+      };
+    });
+  });
   AW.els('.ms-save').forEach(function(btn){
     btn.onclick=function(){
       var gi=+btn.dataset.gi, g=resultsData[gi]; if(!g)return;
@@ -880,7 +903,8 @@ document.getElementById('aCreate').onclick=function(){
 function showSettings(){
   document.getElementById('awPageTitle').textContent='Settings';
   var clsRows=myClasses.map(function(c){
-    return '<tr><td>'+AW.esc(c.className)+'</td><td><b>'+AW.esc(c.classId)+'</b></td><td>'+AW.esc(c.year||'')+'</td><td>'+(c.semester?'HK'+AW.esc(c.semester):'')+'</td></tr>';
+    return '<tr><td>'+AW.esc(c.className)+'</td><td><b>'+AW.esc(c.classId)+'</b></td><td>'+AW.esc(c.year||'')+'</td><td>'+(c.semester?'HK'+AW.esc(c.semester):'')+'</td>'+
+      '<td><button class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.75rem;color:var(--aw-danger)" onclick="archiveClass(\''+AW.esc(c.classId)+'\',\''+AW.esc(c.className)+'\')">Archive</button></td></tr>';
   }).join('');
   content.innerHTML='<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
     '<h3 style="margin:0 0 6px">Account</h3>'+
@@ -889,7 +913,7 @@ function showSettings(){
     '<div class="aw-card" style="padding:24px;max-width:600px;margin-bottom:16px">'+
     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">My Classes</h3>'+
     '<button class="aw-btn aw-btn-primary" style="padding:7px 14px" onclick="showCreateClass()">+ New Class</button></div>'+
-    (myClasses.length?'<div class="aw-table-wrap"><table class="aw-table"><thead><tr><th>Class Name</th><th>Class Code</th><th>Year</th><th>Semester</th></tr></thead><tbody>'+clsRows+'</tbody></table></div>':'<p style="color:var(--aw-ink-3)">No classes yet.</p>')+
+    (myClasses.length?'<div class="aw-table-wrap"><table class="aw-table"><thead><tr><th>Class Name</th><th>Class Code</th><th>Year</th><th>Semester</th><th></th></tr></thead><tbody>'+clsRows+'</tbody></table></div>':'<p style="color:var(--aw-ink-3)">No classes yet.</p>')+
     '</div>'+
     '<div class="aw-card" style="padding:24px;max-width:600px">'+
       '<h3 style="margin:0 0 14px">Change Password</h3>'+
@@ -904,10 +928,27 @@ function showSettings(){
     if(n!==n2){AW.toast('New passwords do not match.','err');return;}
     AW.api('auth.changePassword',{email:sess.email,oldPass:o,newPass:n}).then(function(res){
       if(res&&res.success)AW.toast('Password changed','ok');
-      else AW.toast((res&&res.error)||'Thất bại','err');
+      else AW.toast((res&&res.error)||'Failed','err');
     });
   };
 }
+window.archiveClass=function(classId,className){
+  if(!confirm('Archive class "'+className+'"?\nStudents will no longer see it and it will be hidden from your dashboard. Data is preserved.'))return;
+  AW.api('class.archive',{classId:classId}).then(function(res){
+    if(res&&res.success){
+      AW.toast('Class archived','ok');
+      if(curClass()===classId) localStorage.removeItem(CLASS_KEY);
+      setTimeout(function(){location.reload();},700);
+    } else AW.toast((res&&res.error)||'Failed','err');
+  });
+};
+window.archiveStudent=function(studentId,name){
+  if(!confirm('Archive student "'+name+'" ('+studentId+')?\nThey will be removed from the roster. Data is preserved.'))return;
+  AW.api('student.archive',{studentId:studentId}).then(function(res){
+    if(res&&res.success){ AW.toast('Student archived','ok'); loadRoster(); }
+    else AW.toast((res&&res.error)||'Failed','err');
+  });
+};
 
 /*═══════════ init ═══════════*/
 function routeInitial(){

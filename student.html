@@ -194,19 +194,20 @@ function renderProgress(){
 
   if(!rows.length){box.innerHTML='<div class="aw-empty">'+AW.icon('progress')+'<p>No matching submissions.</p></div>';return;}
 
-  function scoreCell(w,gi,wi){
-    if(!w) return '<td>—</td><td>—</td><td>—</td><td>—</td>';
+  function scoreCell(w,gi,wi,cl){
+    cl=cl||'';
+    if(!w) return '<td class="'+cl+'">—</td><td class="'+cl+'">—</td><td class="'+cl+'">—</td><td class="'+cl+'">—</td>';
     function tm(x){if(!x)return '—';var d=new Date(x);return isNaN(d)?x:(d.getHours()+':'+String(d.getMinutes()).padStart(2,'0'));}
     function du(s){if(!s)return '—';s=parseInt(s,10);if(isNaN(s))return '—';var m=Math.floor(s/60);return m+'m';}
     var o=w.overall||w.teacher||'—';
     var pop='TR '+(w.tr||'—')+' · CC '+(w.cc||'—')+' · LR '+(w.lr||'—')+' · GRA '+(w.gra||'—');
-    return '<td>'+tm(w.startTime)+'</td><td>'+tm(w.finishTime)+'</td><td>'+du(w.duration)+'</td>'+
-      '<td><span class="p-score" data-gi="'+gi+'" data-wi="'+wi+'" title="Click to review">'+o+'<small>/9</small><span class="p-pop">'+pop+'</span></span></td>';
+    return '<td class="'+cl+'">'+tm(w.startTime)+'</td><td class="'+cl+'">'+tm(w.finishTime)+'</td><td class="'+cl+'">'+du(w.duration)+'</td>'+
+      '<td class="'+cl+'"><span class="p-score" data-gi="'+gi+'" data-wi="'+wi+'" title="Click to review">'+o+'<small>/9</small><span class="p-pop">'+pop+'</span></span></td>';
   }
   var writeLabels=[['First Write','pg-1'],['Second Write','pg-2'],['Third Write','pg-3'],['★ Best','pg-b']];
   var top='<tr><th rowspan="2">Assigned</th><th rowspan="2">Topic</th><th rowspan="2">Mode</th>';
   writeLabels.forEach(function(l){top+='<th colspan="4" class="'+l[1]+'">'+l[0]+'</th>';});
-  top+='<th rowspan="2">Progress</th><th rowspan="2"></th></tr><tr>';
+  top+='<th rowspan="2" class="pg-b">Attempt & Teacher Score</th><th rowspan="2"></th></tr><tr>';
   writeLabels.forEach(function(l){top+='<th class="'+l[1]+'">Start</th><th class="'+l[1]+'">Finish</th><th class="'+l[1]+'">Dur</th><th class="'+l[1]+'">Band</th>';});
   top+='</tr>';
 
@@ -217,15 +218,26 @@ function renderProgress(){
     w.forEach(function(x,xi){var v=parseFloat(x.overall);if(!isNaN(v)&&(best===null||v>parseFloat(best.overall))){best=x;bestI=xi;}});
     var picks=[w[0],w[1],w[2],best];
     var idxs=[0,1,2,bestI];
-    var vals=w.map(function(x){return parseFloat(x.overall);}).filter(function(v){return !isNaN(v);});
-    var improve=(vals.length>=2)?(vals[vals.length-1]-vals[0]).toFixed(1):null;
-    var impBadge=improve!==null?(parseFloat(improve)>=0?'<span style="color:var(--aw-writing)">▲+'+improve+'</span>':'<span style="color:var(--aw-danger)">▼'+improve+'</span>'):'';
+    var groups=['pg-1','pg-2','pg-3','pg-b'];
     var assigned=g.assignedDate?new Date(g.assignedDate).toLocaleDateString('en-GB'):'—';
+    var ts=g.teacherScore;
+    // teacher scoring cell — blank hint if not graded
+    var teacherCell;
+    if(ts && (ts.overall||ts.tr||ts.cc||ts.lr||ts.gra)){
+      teacherCell='<div style="font-size:.76rem;line-height:1.5"><b>'+w.length+'/3</b> attempts'+
+        '<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--aw-border-2)">'+
+        '<b style="color:var(--aw-primary)">Teacher: '+(ts.overall||'—')+'</b><br>'+
+        'TR '+(ts.tr||'—')+' · CC '+(ts.cc||'—')+'<br>LR '+(ts.lr||'—')+' · GRA '+(ts.gra||'—')+
+        (ts.note?'<br><i style="color:var(--aw-ink-3)">"'+AW.esc(ts.note)+'"</i>':'')+'</div></div>';
+    } else {
+      teacherCell='<div style="font-size:.76rem;line-height:1.5"><b>'+w.length+'/3</b> attempts'+
+        '<div style="margin-top:4px;color:var(--aw-ink-3);font-style:italic">Not graded by teacher yet</div></div>';
+    }
     var tds='<td style="font-size:.8rem">'+assigned+'</td>'+
       '<td style="text-align:left;white-space:normal;max-width:180px"><b>'+AW.esc(g.topic||'')+'</b></td>'+
       '<td><span class="aw-tag aw-tag-type" style="font-size:.7rem">'+AW.esc(modeLabel[g.mode]||g.mode)+'</span></td>';
-    picks.forEach(function(p,pi){ tds+=scoreCell(p,gi,idxs[pi]); });
-    tds+='<td style="font-size:.78rem"><b>'+w.length+'/3</b><br>Best '+(best?best.overall:'—')+(impBadge?'<br>'+impBadge:'')+'</td>';
+    picks.forEach(function(p,pi){ tds+=scoreCell(p,gi,idxs[pi],groups[pi]); });
+    tds+='<td class="pg-b">'+teacherCell+'</td>';
     tds+='<td><button class="aw-btn aw-btn-ghost" style="padding:4px 10px;font-size:.75rem" onclick="retryFromProgress(\''+AW.esc(g.mode)+'\',\''+AW.esc(g.topicId)+'\',\''+AW.esc(g.topic)+'\')">Re-try</button></td>';
     return '<tr>'+tds+'</tr>';
   }).join('');

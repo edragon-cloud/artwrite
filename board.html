@@ -42,6 +42,13 @@
   <button id="imgRemove">✕ Remove</button>
 </div>
 
+<div class="aw-modal-bg" id="boardModal"><div class="aw-modal2 bm-body"></div></div>
+<style>
+  .aw-modal-bg{position:fixed;inset:0;background:rgba(16,34,46,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
+  .aw-modal-bg.show{display:flex}
+  .aw-modal2{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:100%;max-width:460px;box-shadow:var(--aw-shadow-lg);padding:28px}
+</style>
+
 <script src="aw-common.js"></script>
 <script>
 if (typeof AW === 'undefined') {
@@ -82,21 +89,27 @@ function myBoardClass(){
 }
 
 /*──── board list ────*/
+var teacherClasses=[];
 function showList(){
   stopPoll();
   document.getElementById('awPageTitle').textContent='Interactive Board';
   content.innerHTML =
     (isTeacher ? '<button class="aw-btn aw-btn-primary" id="newBoard" style="margin-bottom:18px">+ New Board</button>' : '') +
     '<div id="boardGrid" class="aw-grid"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div>';
-  if (isTeacher) document.getElementById('newBoard').onclick=createBoard;
+  if (isTeacher){
+    document.getElementById('newBoard').onclick=openBoardModal;
+    // preload teacher's classes for the class dropdown
+    AW.api('class.list',{teacherEmail:sess.email}).then(function(r){ teacherClasses=(r&&r.data)||[]; });
+  }
   AW.api('board.list',{class:myBoardClass()}).then(function(res){
     var rows=(res&&res.data)||[];
     var grid=document.getElementById('boardGrid');
-    if(!rows.length){grid.innerHTML='<div class="aw-empty">'+AW.icon('modes')+'<p>'+(isTeacher?'No boards yet. Click “+ New Board”.':'No boards for your class yet.')+'</p></div>';return;}
+    if(!rows.length){grid.innerHTML='<div class="aw-empty">'+AW.icon('modes')+'<p>'+(isTeacher?'No boards yet. Click "+ New Board".':'No boards for your class yet.')+'</p></div>';return;}
     grid.innerHTML=rows.map(function(b){
       return '<div class="aw-board-card" data-id="'+AW.esc(b.boardId)+'">' +
         '<h3>'+AW.esc(b.title)+'</h3>' +
-        '<div class="meta">Cập nhật: '+(b.updatedAt?new Date(b.updatedAt).toLocaleString():'—')+'</div>' +
+        (b.className||b.class?'<span class="aw-tag aw-tag-type" style="font-size:.72rem">'+AW.esc(b.className||b.class)+'</span> ':'') +
+        '<div class="meta">Updated: '+(b.updatedAt?new Date(b.updatedAt).toLocaleString():'—')+'</div>' +
         (isTeacher?'<button class="aw-btn aw-btn-ghost" style="padding:5px 12px;margin-top:10px" data-del="'+AW.esc(b.boardId)+'">Delete</button>':'') +
         '</div>';
     }).join('');
@@ -111,12 +124,37 @@ function showList(){
   });
 }
 
-function createBoard(){
-  var title=prompt('Board title:','Class Board'); if(!title)return;
-  AW.api('board.create',{class:myBoardClass(),title:title,owner:sess.name||sess.email}).then(function(res){
-    if(res&&res.success){ AW.toast('Board created','ok'); openBoard(res.data.boardId); }
-    else AW.toast('Failed to create','err');
-  });
+function openBoardModal(){
+  var classOpts = teacherClasses.length
+    ? teacherClasses.map(function(c){
+        var sel=(c.classId===myBoardClass())?' selected':'';
+        return '<option value="'+AW.esc(c.classId)+'"'+sel+'>'+AW.esc(c.className)+' ('+AW.esc(c.classId)+')</option>';
+      }).join('')
+    : '<option value="'+AW.esc(myBoardClass())+'">'+AW.esc(myBoardClass()||'(current class)')+'</option>';
+  var bg=document.getElementById('boardModal');
+  bg.querySelector('.bm-body').innerHTML=
+    '<h2 style="margin:0 0 4px;font-family:var(--aw-font-display);font-size:1.4rem">Create New Board</h2>'+
+    '<p style="margin:0 0 18px;color:var(--aw-ink-2);font-size:.9rem">Only students in the selected class will see this board.</p>'+
+    '<div class="aw-field"><label class="aw-label">Board title</label>'+
+      '<input class="aw-input" id="bmTitle" placeholder="e.g. Week 1 — Lesson Board"></div>'+
+    '<div class="aw-field"><label class="aw-label">Class</label>'+
+      '<select class="aw-select" id="bmClass" style="width:100%">'+classOpts+'</select></div>'+
+    '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:8px">'+
+      '<button class="aw-btn aw-btn-ghost" id="bmCancel">Cancel</button>'+
+      '<button class="aw-btn aw-btn-primary" id="bmCreate">Create Board</button>'+
+    '</div>';
+  bg.classList.add('show');
+  document.getElementById('bmCancel').onclick=function(){ bg.classList.remove('show'); };
+  document.getElementById('bmCreate').onclick=function(){
+    var title=document.getElementById('bmTitle').value.trim();
+    var cls=document.getElementById('bmClass').value;
+    if(!title){AW.toast('Enter a board title.','err');return;}
+    var btn=this; btn.disabled=true; btn.textContent='Creating…';
+    AW.api('board.create',{class:cls,title:title,owner:sess.name||sess.email}).then(function(res){
+      if(res&&res.success){ bg.classList.remove('show'); AW.toast('Board created','ok'); openBoard(res.data.boardId); }
+      else AW.toast('Failed to create','err');
+    }).finally(function(){ btn.disabled=false; btn.textContent='Create Board'; });
+  };
 }
 
 /*──── open board ────*/
