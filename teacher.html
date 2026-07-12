@@ -715,10 +715,12 @@ function renderResults(){
     });
     tds+='<td class="grp-best">'+attemptsCell+'</td>';
     // private note column (teacher-only)
-    tds+='<td style="background:#EAF6EF;min-width:180px">'+
-      '<textarea class="pv-note" data-gi="'+gi+'" placeholder="Nhận xét gửi cho sinh viên (SV sẽ thấy)…" '+
-      'style="width:170px;min-height:56px;border:1px solid var(--aw-border);border-radius:6px;padding:6px;font-size:.78rem;font-family:var(--aw-font-body);resize:vertical">'+AW.esc(ts.privateNote||'')+'</textarea>'+
-      '<button class="pv-save aw-btn aw-btn-ghost" data-gi="'+gi+'" style="padding:3px 10px;font-size:.7rem;margin-top:3px">Save note</button></td>';
+    tds+='<td style="background:#EAF6EF;min-width:180px;vertical-align:top">'+
+      '<div style="display:flex;flex-direction:column;gap:5px;align-items:stretch">'+
+        '<textarea class="pv-note" data-gi="'+gi+'" placeholder="Nhận xét gửi cho sinh viên (SV sẽ thấy)…" '+
+        'style="width:100%;min-height:56px;border:1px solid var(--aw-border);border-radius:6px;padding:6px;font-size:.78rem;font-family:var(--aw-font-body);resize:vertical;box-sizing:border-box">'+AW.esc(ts.privateNote||'')+'</textarea>'+
+        '<button class="pv-save aw-btn aw-btn-primary" data-gi="'+gi+'" style="padding:5px 10px;font-size:.72rem;width:100%">Save note</button>'+
+      '</div></td>';
     return '<tr data-gi="'+gi+'" data-besti="'+bestI+'">'+tds+'</tr>';
   }).join('');
 
@@ -782,7 +784,7 @@ function renderResults(){
         privateNote: pv?pv.value.trim():'' };
       btn.disabled=true; var o=btn.textContent; btn.textContent='Saving…';
       AW.api('teacher.saveManualScore',payload).then(function(res){
-        if(res&&res.success){ AW.toast('Private note saved','ok'); g.teacherScore=payload; }
+        if(res&&res.success){ AW.toast('Note sent to student','ok'); g.teacherScore=payload; }
         else AW.toast((res&&res.error)||'Save failed','err');
       }).finally(function(){ btn.disabled=false; btn.textContent=o; });
     };
