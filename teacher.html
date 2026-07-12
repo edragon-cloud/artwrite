@@ -705,7 +705,7 @@ function renderResults(){
       '</div>'+
       (ts.gradedAt?'<div style="font-size:.65rem;color:var(--aw-writing);margin-top:3px">✓ Graded</div>':'')+
     '</div>';
-    var topicCell='<td style="text-align:left;white-space:normal;max-width:170px"><b>'+AW.esc(g.topic||'')+'</b></td>';
+    var topicCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:220px;max-width:260px"><b>'+AW.esc(g.topic||'')+'</b></td>';
     var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+'</td>'+
       '<td>'+AW.esc(g.className||g.class||'')+'</td>'+topicCell;
     picks.forEach(function(p,pi){

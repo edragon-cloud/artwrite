@@ -230,18 +230,17 @@ function renderProgress(){
     // teacher scoring cell — blank hint if not graded
     var teacherCell;
     if(ts && (ts.overall||ts.tr||ts.cc||ts.lr||ts.gra||ts.privateNote)){
-      teacherCell='<div style="font-size:.76rem;line-height:1.5;width:200px"><b>'+w.length+'/3</b> attempts'+
+      teacherCell='<div style="font-size:.76rem;line-height:1.5;width:210px"><b>'+w.length+'/3</b> attempts'+
         '<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--aw-border-2)">'+
-        (ts.overall||ts.tr?'<b style="color:var(--aw-primary)">Teacher: '+(ts.overall||'—')+'</b><br>'+
-        'TR '+(ts.tr||'—')+' · CC '+(ts.cc||'—')+'<br>LR '+(ts.lr||'—')+' · GRA '+(ts.gra||'—'):'')+
-        (ts.privateNote?'<div style="margin-top:5px;padding:6px;background:#EAF6EF;border-radius:6px;color:var(--aw-ink-2);white-space:normal;word-break:break-word;max-width:200px"><b>💬 Teacher note:</b><br>'+AW.esc(ts.privateNote)+'</div>':'')+
+        (ts.overall||ts.tr?'<div><b style="color:var(--aw-primary)">Teacher: '+(ts.overall||'—')+'</b> · TR '+(ts.tr||'—')+' · CC '+(ts.cc||'—')+' · LR '+(ts.lr||'—')+' · GRA '+(ts.gra||'—')+'</div>':'')+
+        (ts.privateNote?'<div style="margin-top:5px;padding:6px;background:#EAF6EF;border-radius:6px;color:var(--aw-ink-2);white-space:normal;word-break:break-word"><b>💬 Teacher note:</b><br>'+AW.esc(ts.privateNote)+'</div>':'')+
         '</div></div>';
     } else {
       teacherCell='<div style="font-size:.76rem;line-height:1.5;width:200px"><b>'+w.length+'/3</b> attempts'+
         '<div style="margin-top:4px;color:var(--aw-ink-3);font-style:italic">Not graded by teacher yet</div></div>';
     }
     var tds='<td>'+dateCell+'</td>'+
-      '<td style="text-align:left;white-space:normal;max-width:180px"><b>'+AW.esc(g.topic||'')+'</b></td>'+
+      '<td style="text-align:left;white-space:normal;word-break:break-word;min-width:220px;max-width:260px"><b>'+AW.esc(g.topic||'')+'</b></td>'+
       '<td><span class="aw-tag aw-tag-type" style="font-size:.7rem">'+AW.esc(modeLabel[g.mode]||g.mode)+'</span></td>';
     picks.forEach(function(p,pi){ tds+=scoreCell(p,gi,idxs[pi],groups[pi]); });
     tds+='<td class="pg-b">'+teacherCell+'</td>';
