@@ -232,7 +232,8 @@ function renderProgress(){
     if(ts && (ts.overall||ts.tr||ts.cc||ts.lr||ts.gra||ts.privateNote)){
       teacherCell='<div style="font-size:.76rem;line-height:1.5;width:210px"><b>'+w.length+'/3</b> attempts'+
         '<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--aw-border-2)">'+
-        (ts.overall||ts.tr?'<div><b style="color:var(--aw-primary)">Teacher: '+(ts.overall||'—')+'</b> · TR '+(ts.tr||'—')+' · CC '+(ts.cc||'—')+' · LR '+(ts.lr||'—')+' · GRA '+(ts.gra||'—')+'</div>':'')+
+        (ts.overall?'<div style="margin-bottom:2px"><b style="color:var(--aw-primary);font-size:.9rem">Teacher: '+ts.overall+'</b></div>':'')+
+        ((ts.tr||ts.cc||ts.lr||ts.gra)?'<div style="color:var(--aw-ink-2)">TR '+(ts.tr||'—')+' · CC '+(ts.cc||'—')+' · LR '+(ts.lr||'—')+' · GRA '+(ts.gra||'—')+'</div>':'')+
         (ts.privateNote?'<div style="margin-top:5px;padding:6px;background:#EAF6EF;border-radius:6px;color:var(--aw-ink-2);white-space:normal;word-break:break-word"><b>💬 Teacher note:</b><br>'+AW.esc(ts.privateNote)+'</div>':'')+
         '</div></div>';
     } else {
