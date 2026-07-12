@@ -25,6 +25,12 @@
   .aw-lock-badge{font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:var(--aw-r-pill)}
   .aw-lock-open{background:#E4F5EA;color:#1E7E42}
   .aw-lock-closed{background:#F0F1F3;color:#6B7683}
+  .ac-box{background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);padding:14px 16px;margin:14px 0}
+  .ac-chip{border:1px solid var(--aw-border);border-radius:var(--aw-r-pill);padding:5px 12px;font-size:.78rem;font-weight:600;cursor:pointer;margin:0 4px 4px 0;background:#fff;transition:all .15s}
+  .ac-chip.ac-open{background:#E4F5EA;color:#1E7E42;border-color:#9FD9B4}
+  .ac-chip.ac-locked{background:#FDEAEA;color:#C0392B;border-color:#F0B0AB}
+  .ac-chip.ac-none{background:#fff;color:var(--aw-ink-2)}
+  .ac-chip:hover{filter:brightness(.96)}
 </style>
 </head>
 <body>
@@ -94,7 +100,13 @@ function masterLock(open){
 var flat=[], grid=document.getElementById('grid'), empty=document.getElementById('empty');
 grid.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span><p>Loading library…</p></div>';
 
-AW.api('write.getLibrary',{}).then(function(res){
+var myClasses=[], classRosters={};
+if(isTeacher){
+  AW.api('class.list',{teacherEmail:sess.email}).then(function(r){ myClasses=(r&&r.data)||[]; });
+}
+
+var libCtx = isTeacher ? {} : { studentId:sess.studentId, class:sess.class };
+AW.api('write.getLibrary',libCtx).then(function(res){
   if(!res||!res.success){grid.innerHTML='';empty.style.display='';return;}
   var lib=res.data||[];
   var topics={}, types={};
@@ -162,13 +174,43 @@ function outlineHtml(q){
   return html || '<p style="color:var(--aw-ink-3)">No model outline for this prompt yet.</p>';
 }
 
+function accessManagerHtml(q){
+  // current rules for this prompt
+  var rules = q.accessRules || [];
+  function ruleState(scope,target){
+    var r=rules.filter(function(x){return x.scope===scope && String(x.target)===String(target);})[0];
+    return r?r.state:'';
+  }
+  var allState = ruleState('all','') || (q.globalOpen?'Open':'');
+  var classChips = myClasses.map(function(c){
+    var st=ruleState('class',c.classId);
+    var cls = st==='Open'?'ac-open':(st==='Locked'?'ac-locked':'ac-none');
+    return '<button class="ac-chip '+cls+'" data-scope="class" data-target="'+AW.esc(c.classId)+'" data-q="'+AW.esc(q.question)+'">'+
+      AW.esc(c.className)+(st?' · '+st:'')+'</button>';
+  }).join('');
+  return '<div class="ac-box">'+
+    '<h4 style="margin:0 0 8px;font-size:.85rem;text-transform:uppercase;color:var(--aw-primary)">🔓 Assign outline access</h4>'+
+    '<div style="margin-bottom:10px"><b style="font-size:.82rem">Everyone:</b> '+
+      '<button class="ac-chip '+(allState==='Open'?'ac-open':'ac-none')+'" data-scope="all" data-target="" data-q="'+AW.esc(q.question)+'" data-state="Open">Open for all</button>'+
+      '<button class="ac-chip '+(allState==='Locked'?'ac-locked':'ac-none')+'" data-scope="all" data-target="" data-q="'+AW.esc(q.question)+'" data-state="Locked">Lock for all</button>'+
+    '</div>'+
+    (myClasses.length?'<div style="margin-bottom:10px"><b style="font-size:.82rem">By class</b> (click to cycle Open→Lock→default):<br><div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">'+classChips+'</div></div>':'')+
+    '<div><b style="font-size:.82rem">By student:</b> '+
+      '<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">'+
+        '<input class="aw-input" id="acStuId" placeholder="Student ID" style="width:150px;padding:6px 10px">'+
+        '<button class="ac-chip ac-open" data-scope="student" data-state="Open" data-q="'+AW.esc(q.question)+'" id="acStuOpen">Open for student</button>'+
+        '<button class="ac-chip ac-locked" data-scope="student" data-state="Locked" data-q="'+AW.esc(q.question)+'" id="acStuLock">Lock for student</button>'+
+      '</div>'+
+      (rules.filter(function(x){return x.scope==='student';}).length?
+        '<div style="margin-top:8px;font-size:.8rem;color:var(--aw-ink-2)">Student rules: '+
+        rules.filter(function(x){return x.scope==='student';}).map(function(x){return AW.esc(x.target)+' ('+x.state+')';}).join(', ')+'</div>':'')+
+    '</div>'+
+  '</div>';
+}
+
 function openDetail(q){
   var body=document.getElementById('modalBody');
   var showOutline = isTeacher || q.outlineUnlocked;
-  var teacherToggle = isTeacher
-    ? '<label class="aw-toggle"><input type="checkbox" id="lockTog" '+(q.outlineUnlocked?'checked':'')+'>'+
-      '<span class="track"></span><span id="togLbl">'+(q.outlineUnlocked?'Outline visible to students':'Outline locked')+'</span></label>'
-    : '';
   body.innerHTML=
     '<div style="display:flex;justify-content:space-between;align-items:start;gap:12px">'+
       '<div><div class="aw-eyebrow">'+AW.esc(q.topic)+(q.taskType?' · '+AW.esc(q.taskType):'')+'</div>'+
@@ -176,7 +218,7 @@ function openDetail(q){
       '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="closeDetail()">Close</button>'+
     '</div>'+
     (q.keywords?'<p style="color:var(--aw-ink-2);font-size:.9rem"><b>Keywords:</b> '+AW.esc(q.keywords)+'</p>':'')+
-    (teacherToggle?'<div style="margin:10px 0">'+teacherToggle+'</div>':'')+
+    (isTeacher?accessManagerHtml(q):'')+
     (showOutline
       ? '<h3 style="font-family:var(--aw-font-display);margin:18px 0 0">Suggested Outline</h3>'+outlineHtml(q)
       : '<div class="aw-lock-note">🔒 The model outline for this prompt is locked. Your teacher will open it when appropriate. You can still practice this prompt now.</div>')+
@@ -186,17 +228,7 @@ function openDetail(q){
   document.getElementById('modalBg').classList.add('show');
 
   if(isTeacher){
-    document.getElementById('lockTog').onchange=function(){
-      var tog=this;
-      AW.api('library.toggleLock',{rowIndex:q.rowIndex}).then(function(res){
-        if(res&&res.success){
-          q.outlineUnlocked=res.data.outlineUnlocked;
-          document.getElementById('togLbl').textContent=q.outlineUnlocked?'Outline visible to students':'Outline locked';
-          AW.toast(q.outlineUnlocked?'Đã mở dàn ý cho sinh viên':'Đã khoá dàn ý','ok');
-          applyFilters();
-        } else { tog.checked=!tog.checked; AW.toast('Không đổi được trạng thái','err'); }
-      });
-    };
+    wireAccessButtons(q);
   } else {
     var wb=document.getElementById('writeBtn');
     if(wb) wb.onclick=function(){
@@ -205,6 +237,53 @@ function openDetail(q){
     };
   }
 }
+
+function setAccess(question,scope,target,state,cb){
+  AW.api('library.setAccess',{question:question,scope:scope,target:target,state:state}).then(function(res){
+    if(res&&res.success){ AW.toast('Access updated','ok'); cb&&cb(); }
+    else AW.toast((res&&res.error)||'Failed','err');
+  });
+}
+function wireAccessButtons(q){
+  // all + student explicit-state buttons
+  AW.els('.ac-chip[data-state]').forEach(function(btn){
+    if(btn.dataset.scope==='class')return; // class handled separately (cycle)
+    btn.onclick=function(){
+      var scope=btn.dataset.scope, state=btn.dataset.state, target='';
+      if(scope==='student'){
+        target=(document.getElementById('acStuId').value||'').trim();
+        if(!target){AW.toast('Enter a Student ID','err');return;}
+      }
+      setAccess(q.question,scope,target,state,function(){ refreshLibrary(); });
+    };
+  });
+  // class chips cycle: none → Open → Locked → (remove)
+  AW.els('.ac-chip[data-scope="class"]').forEach(function(btn){
+    btn.onclick=function(){
+      var target=btn.dataset.target;
+      var cur = btn.classList.contains('ac-open')?'Open':(btn.classList.contains('ac-locked')?'Locked':'none');
+      if(cur==='none'){ setAccess(q.question,'class',target,'Open',refreshLibrary); }
+      else if(cur==='Open'){ setAccess(q.question,'class',target,'Locked',refreshLibrary); }
+      else { // Locked → remove rule (back to default)
+        AW.api('library.removeAccess',{question:q.question,scope:'class',target:target}).then(function(){ AW.toast('Rule removed','ok'); refreshLibrary(); });
+      }
+    };
+  });
+}
+function refreshLibrary(){
+  AW.api('write.getLibrary',libCtx).then(function(res){
+    if(!res||!res.success)return;
+    flat.length=0;
+    (res.data||[]).forEach(function(t){ (t.questions||[]).forEach(function(qq){ qq.topic=t.topic; flat.push(qq); }); });
+    applyFilters();
+    // re-open the same prompt to show updated rules
+    var open=flat.filter(function(x){return x.question===lastOpenQ;})[0];
+    if(open) openDetail(open);
+  });
+}
+var lastOpenQ='';
+var _origOpenDetail=openDetail;
+openDetail=function(q){ lastOpenQ=q.question; _origOpenDetail(q); };
 window.closeDetail=function(){document.getElementById('modalBg').classList.remove('show');};
 </script>
 </body>
