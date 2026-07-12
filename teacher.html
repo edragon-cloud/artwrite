@@ -673,7 +673,7 @@ function renderResults(){
   writeLabels.forEach(function(l){
     top+='<th colspan="4" class="'+l[2]+'">'+l[0]+'</th>';
   });
-  top+='<th rowspan="2" class="hd-best">Attempts</th></tr><tr>';
+  top+='<th rowspan="2" class="hd-best">Attempts & Score</th><th rowspan="2" style="background:#2E9367 !important">💬 Note for Student</th></tr><tr>';
   writeLabels.forEach(function(l){ top+='<th class="'+l[1]+'">Start</th><th class="'+l[1]+'">Finish</th><th class="'+l[1]+'">Dur</th><th class="'+l[1]+'">Result</th>'; });
   top+='</tr>';
 
@@ -700,7 +700,7 @@ function renderResults(){
         '<input class="ms-in" data-f="overall" placeholder="OA" value="'+AW.esc(ts.overall||'')+'" title="Overall" style="font-weight:700;background:#FEF6E3">'+
       '</div>'+
       '<div style="display:flex;gap:5px;align-items:center">'+
-        '<input class="ms-note" data-f="note" placeholder="Note…" value="'+AW.esc(ts.note||'')+'" style="flex:1;min-width:0">'+
+        '<input class="ms-note" data-f="note" placeholder="Private note (GV only)…" value="'+AW.esc(ts.note||'')+'" style="flex:1;min-width:0" title="Only you see this">'+
         '<button class="ms-save aw-btn aw-btn-primary" style="padding:5px 12px;font-size:.72rem;flex:0 0 auto" data-gi="'+gi+'">Save</button>'+
       '</div>'+
       (ts.gradedAt?'<div style="font-size:.65rem;color:var(--aw-writing);margin-top:3px">✓ Graded</div>':'')+
@@ -714,6 +714,11 @@ function renderResults(){
       tds+=timeCells(p,groups[pi])+scoreCell(p,groups[pi],gi,realIdx);
     });
     tds+='<td class="grp-best">'+attemptsCell+'</td>';
+    // private note column (teacher-only)
+    tds+='<td style="background:#EAF6EF;min-width:180px">'+
+      '<textarea class="pv-note" data-gi="'+gi+'" placeholder="Nhận xét gửi cho sinh viên (SV sẽ thấy)…" '+
+      'style="width:170px;min-height:56px;border:1px solid var(--aw-border);border-radius:6px;padding:6px;font-size:.78rem;font-family:var(--aw-font-body);resize:vertical">'+AW.esc(ts.privateNote||'')+'</textarea>'+
+      '<button class="pv-save aw-btn aw-btn-ghost" data-gi="'+gi+'" style="padding:3px 10px;font-size:.7rem;margin-top:3px">Save note</button></td>';
     return '<tr data-gi="'+gi+'" data-besti="'+bestI+'">'+tds+'</tr>';
   }).join('');
 
@@ -755,9 +760,29 @@ function renderResults(){
       var payload={ studentId:g.studentId, topicId:g.topicId,
         mode:document.querySelector('.aw-tab.active').dataset.mode };
       cell.querySelectorAll('[data-f]').forEach(function(inp){ payload[inp.dataset.f]=inp.value.trim(); });
+      // preserve existing private note
+      var pv=document.querySelector('.pv-note[data-gi="'+gi+'"]');
+      payload.privateNote = pv?pv.value.trim():((g.teacherScore&&g.teacherScore.privateNote)||'');
       btn.disabled=true; var o=btn.textContent; btn.textContent='Saving…';
       AW.api('teacher.saveManualScore',payload).then(function(res){
         if(res&&res.success){ AW.toast('Score saved','ok'); g.teacherScore=payload; }
+        else AW.toast((res&&res.error)||'Save failed','err');
+      }).finally(function(){ btn.disabled=false; btn.textContent=o; });
+    };
+  });
+  // private note save (teacher-only)
+  AW.els('.pv-save').forEach(function(btn){
+    btn.onclick=function(){
+      var gi=+btn.dataset.gi, g=resultsData[gi]; if(!g)return;
+      var ts=g.teacherScore||{};
+      var pv=document.querySelector('.pv-note[data-gi="'+gi+'"]');
+      var payload={ studentId:g.studentId, topicId:g.topicId,
+        mode:document.querySelector('.aw-tab.active').dataset.mode,
+        tr:ts.tr||'', cc:ts.cc||'', lr:ts.lr||'', gra:ts.gra||'', overall:ts.overall||'', note:ts.note||'',
+        privateNote: pv?pv.value.trim():'' };
+      btn.disabled=true; var o=btn.textContent; btn.textContent='Saving…';
+      AW.api('teacher.saveManualScore',payload).then(function(res){
+        if(res&&res.success){ AW.toast('Private note saved','ok'); g.teacherScore=payload; }
         else AW.toast((res&&res.error)||'Save failed','err');
       }).finally(function(){ btn.disabled=false; btn.textContent=o; });
     };
