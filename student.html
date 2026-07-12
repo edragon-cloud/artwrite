@@ -205,7 +205,7 @@ function renderProgress(){
       '<td class="'+cl+'"><span class="p-score" data-gi="'+gi+'" data-wi="'+wi+'" title="Click to review">'+o+'<small>/9</small><span class="p-pop">'+pop+'</span></span></td>';
   }
   var writeLabels=[['First Write','pg-1'],['Second Write','pg-2'],['Third Write','pg-3'],['★ Best','pg-b']];
-  var top='<tr><th rowspan="2">Assigned / Deadline</th><th rowspan="2">Topic</th><th rowspan="2">Mode</th>';
+  var top='<tr><th rowspan="2">Assigned / Deadline</th><th rowspan="2">Title</th><th rowspan="2">Prompt (đề bài)</th><th rowspan="2">Mode</th>';
   writeLabels.forEach(function(l){top+='<th colspan="4" class="'+l[1]+'">'+l[0]+'</th>';});
   top+='<th rowspan="2" class="pg-b">Attempt & Teacher Score</th><th rowspan="2"></th></tr><tr>';
   writeLabels.forEach(function(l){top+='<th class="'+l[1]+'">Start</th><th class="'+l[1]+'">Finish</th><th class="'+l[1]+'">Dur</th><th class="'+l[1]+'">Band</th>';});
@@ -240,8 +240,10 @@ function renderProgress(){
       teacherCell='<div style="font-size:.76rem;line-height:1.5;width:200px"><b>'+w.length+'/3</b> attempts'+
         '<div style="margin-top:4px;color:var(--aw-ink-3);font-style:italic">Not graded by teacher yet</div></div>';
     }
+    var promptPlain = g.prompt ? (AW.stripHtml?AW.stripHtml(g.prompt):g.prompt.replace(/<[^>]*>/g,' ')) : '';
     var tds='<td>'+dateCell+'</td>'+
-      '<td style="text-align:left;white-space:normal;word-break:break-word;min-width:220px;max-width:260px"><b>'+AW.esc(g.topic||'')+'</b></td>'+
+      '<td style="text-align:left;white-space:normal;word-break:break-word;min-width:150px;max-width:200px"><b>'+AW.esc(g.topic||'')+'</b></td>'+
+      '<td style="text-align:left;white-space:normal;word-break:break-word;min-width:220px;max-width:300px;font-size:.82rem;color:var(--aw-ink-2)">'+AW.esc(promptPlain)+'</td>'+
       '<td><span class="aw-tag aw-tag-type" style="font-size:.7rem">'+AW.esc(modeLabel[g.mode]||g.mode)+'</span></td>';
     picks.forEach(function(p,pi){ tds+=scoreCell(p,gi,idxs[pi],groups[pi]); });
     tds+='<td class="pg-b">'+teacherCell+'</td>';

@@ -155,9 +155,9 @@
   <div class="aw-amodal">
     <h2 id="assignTitle">New Homework</h2>
     <p class="aw-auth-sub" style="margin:0 0 18px" id="assignSub">Assign to the selected class.</p>
-    <div class="aw-field"><label class="aw-label">Topic / Title</label>
-      <input class="aw-input" id="aTopic" placeholder="VD: Day 1 — Advertising essay"></div>
-    <div class="aw-field"><label class="aw-label">Prompt / Instructions</label>
+    <div class="aw-field"><label class="aw-label">Title (tên bài tập)</label>
+      <input class="aw-input" id="aTopic" placeholder="VD: Day 1 — Discussion 1"></div>
+    <div class="aw-field"><label class="aw-label">Prompt (đề bài chính thức)</label>
       <div class="aw-editor-mini-tb">
         <button type="button" data-c="bold"><b>B</b></button>
         <button type="button" data-c="italic"><i>I</i></button>
@@ -669,7 +669,7 @@ function renderResults(){
   });
   var writeLabels=[['First Write','grp-1','hd-1',0],['Second Write','grp-2','hd-2',1],['Third Write','grp-3','hd-3',2],['★ Best Write','grp-best','hd-best','best']];
   var top='<tr><th class="sticky" rowspan="2">Student ID</th>'+
-    '<th rowspan="2">Name</th><th rowspan="2">Class</th><th rowspan="2">Topic</th>';
+    '<th rowspan="2">Name</th><th rowspan="2">Class</th><th rowspan="2">Title</th><th rowspan="2">Prompt (đề bài)</th>';
   writeLabels.forEach(function(l){
     top+='<th colspan="4" class="'+l[2]+'">'+l[0]+'</th>';
   });
@@ -705,9 +705,11 @@ function renderResults(){
       '</div>'+
       (ts.gradedAt?'<div style="font-size:.65rem;color:var(--aw-writing);margin-top:3px">✓ Graded</div>':'')+
     '</div>';
-    var topicCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:220px;max-width:260px"><b>'+AW.esc(g.topic||'')+'</b></td>';
+    var topicCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:150px;max-width:200px"><b>'+AW.esc(g.topic||'')+'</b></td>';
+    var promptPlain = g.prompt ? (AW.stripHtml?AW.stripHtml(g.prompt):g.prompt.replace(/<[^>]*>/g,' ')) : '';
+    var promptCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:220px;max-width:300px;font-size:.82rem;color:var(--aw-ink-2)">'+AW.esc(promptPlain)+'</td>';
     var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+'</td>'+
-      '<td>'+AW.esc(g.className||g.class||'')+'</td>'+topicCell;
+      '<td>'+AW.esc(g.className||g.class||'')+'</td>'+topicCell+promptCell;
     picks.forEach(function(p,pi){
       // map pick index to actual write index (best uses bestI)
       var realIdx = (pi<3) ? pi : bestI;
@@ -886,10 +888,11 @@ function loadAssignmentList(mode){
       return;
     }
     box.innerHTML='<div class="aw-table-wrap"><table class="aw-table"><thead><tr>'+
-      '<th>Topic</th><th>Class</th><th>Required</th><th>Deadline</th></tr></thead><tbody>'+
+      '<th>Title</th><th>Prompt (đề bài)</th><th>Class</th><th>Required</th><th>Deadline</th></tr></thead><tbody>'+
       rows.map(function(a){
         var plain=AW.stripHtml?AW.stripHtml(a.prompt||''):(a.prompt||'').replace(/<[^>]*>/g,'');
-        return '<tr><td><b>'+AW.esc(a.topic)+'</b><br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(plain.slice(0,80))+'</span></td>'+
+        return '<tr><td><b>'+AW.esc(a.topic)+'</b></td>'+
+          '<td style="font-size:.85rem;color:var(--aw-ink-2);max-width:340px">'+AW.esc(plain)+'</td>'+
           '<td>'+AW.esc((curClassObj()&&curClassObj().className)||a.class||curClass())+'</td>'+
           '<td style="text-align:center">'+(a.requiredAttempts||1)+'</td>'+
           '<td>'+(a.deadline?AW.esc(a.deadline):'—')+'</td></tr>';
