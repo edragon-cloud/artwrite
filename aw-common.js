@@ -236,34 +236,36 @@
   AW.renderTodaysWord = function (mountId) {
     var mount = document.getElementById(mountId || 'todaysWord');
     if (!mount) return;
-    // login-count based advance: every 5 logins bumps the index by 1
     var LK = 'aw_login_count';
     var logins = parseInt(localStorage.getItem(LK) || '0', 10);
-    var forceIdx = Math.floor(logins / 5); // advance 1 word per 5 logins
+    var forceIdx = Math.floor(logins / 5);
     AW.api('vocab.today', { index: forceIdx }).then(function (res) {
       if (!res || !res.success || !res.data) { mount.innerHTML = ''; return; }
       var d = res.data, c = d.current, prev = d.previous;
       mount.innerHTML =
         '<div class="aw-tw">' +
-          '<div class="aw-tw-main">' +
-            '<div class="aw-tw-eyebrow">✨ TODAY\'S WORD</div>' +
-            '<div class="aw-tw-word">' + AW.esc(c.word) +
-              (c.ipa ? '<span class="aw-tw-ipa">/' + AW.esc(c.ipa) + '/</span>' : '') +
-              (c.band ? '<span class="aw-tw-band">' + AW.esc(c.band) + '</span>' : '') +
+          '<div class="aw-tw-glow"></div>' +
+          '<div class="aw-tw-grid">' +
+            '<div class="aw-tw-left">' +
+              '<div class="aw-tw-eyebrow">✦ TODAY\'S WORD</div>' +
+              '<div class="aw-tw-word">' + AW.esc(c.word) +
+                (c.ipa ? '<span class="aw-tw-ipa">/' + AW.esc(c.ipa) + '/</span>' : '') +
+                (c.band ? '<span class="aw-tw-band">' + AW.esc(c.band) + '</span>' : '') +
+              '</div>' +
+              (c.meaningVi ? '<div class="aw-tw-mean"><span class="aw-tw-flag">🇻🇳</span> ' + AW.esc(c.meaningVi) + '</div>' : '') +
+              (c.synonyms && c.synonyms.length ?
+                '<div class="aw-tw-syn"><span class="aw-tw-lbl">SYNONYMS</span><div class="aw-tw-chips">' +
+                c.synonyms.map(function (s) { return '<span class="aw-tw-chip">' + AW.esc(s) + '</span>'; }).join('') + '</div></div>' : '') +
             '</div>' +
-            (c.meaningVi ? '<div class="aw-tw-mean">🇻🇳 ' + AW.esc(c.meaningVi) + '</div>' : '') +
-            (c.synonyms && c.synonyms.length ?
-              '<div class="aw-tw-syn"><span class="aw-tw-lbl">SYNONYMS</span>' +
-              c.synonyms.map(function (s) { return '<span class="aw-tw-chip">' + AW.esc(s) + '</span>'; }).join('') + '</div>' : '') +
-          '</div>' +
-          '<div class="aw-tw-side">' +
-            (c.examples && c.examples.length ?
-              '<div class="aw-tw-ex"><span class="aw-tw-lbl">EXAMPLES</span>' +
-              c.examples.map(function (e) { return '<p>"' + AW.esc(e) + '"</p>'; }).join('') + '</div>' : '') +
-            (prev && prev.word ?
-              '<div class="aw-tw-prev"><span class="aw-tw-prev-lbl">PREVIOUSLY</span>' +
-              '<div class="aw-tw-prev-word">' + AW.esc(prev.word) + '</div>' +
-              (prev.meaningVi ? '<div class="aw-tw-prev-mean">' + AW.esc(prev.meaningVi) + '</div>' : '') + '</div>' : '') +
+            '<div class="aw-tw-right">' +
+              (prev && prev.word ?
+                '<div class="aw-tw-prev"><span class="aw-tw-prev-lbl">PREVIOUSLY</span>' +
+                '<div class="aw-tw-prev-word">' + AW.esc(prev.word) + '</div>' +
+                (prev.meaningVi ? '<div class="aw-tw-prev-mean">' + AW.esc(prev.meaningVi) + '</div>' : '') + '</div>' : '') +
+              (c.examples && c.examples.length ?
+                '<div class="aw-tw-ex"><span class="aw-tw-lbl">EXAMPLES</span>' +
+                c.examples.map(function (e) { return '<p>"' + AW.esc(e) + '"</p>'; }).join('') + '</div>' : '') +
+            '</div>' +
           '</div>' +
         '</div>';
     });
