@@ -129,15 +129,11 @@ editor.addEventListener('input', function(){
   wc.textContent = AW.wordCount(editor.innerText) + ' words';
 });
 
-/*──────── retry: load previous attempt ────────*/
+/*──────── retry: start FRESH with an empty editor ────────*/
 if (RETRY) {
-  AW.api('write.getAttempt', { studentId: sess.studentId, topicId: TOPIC_ID }).then(function(res){
-    if (res && res.success) {
-      editor.innerText = res.data.essay || '';
-      wc.textContent = AW.wordCount(editor.innerText)+' words';
-      AW.toast('Đã tải bài cũ để viết lại','ok');
-    }
-  });
+  editor.innerText = '';
+  wc.textContent = '0 words';
+  AW.toast('New attempt — write a fresh essay','ok');
 }
 
 /*──────── timer ────────*/

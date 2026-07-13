@@ -277,17 +277,23 @@ window.reviewFeedback=function(i){
 };
 function reviewFeedbackRec(r, refIdx){
   var i=refIdx;
-  var fb=null;
-  if(r.feedback){ try{ fb=JSON.parse(r.feedback); }catch(e){ fb=null; } }
+  var fb=null, parseError=false;
+  if(r.feedback && String(r.feedback).trim()){
+    try{ fb=JSON.parse(r.feedback); }
+    catch(e){ fb=null; parseError=true; console.warn('Feedback parse failed:',e,r.feedback&&r.feedback.slice(0,120)); }
+  }
   window._reviewRec=r;
   // if no stored feedback (older submission), show essay + scores only
   if(!fb){
+    var noticeMsg = parseError
+      ? 'The stored feedback for this attempt could not be read (data format issue). Score and essay are shown below.'
+      : 'This attempt has no stored AI feedback yet. This happens for submissions made before feedback storage was enabled, or if the tab was reset. New submissions show full feedback here.';
     var bodyNoFb='<div id="reviewContent">'+
       '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">'+
         '<div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#0A6EBD,#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff"><b style="font-size:1.5rem">'+(r.overall||'—')+'</b><span style="font-size:.5rem">BAND</span></div>'+
         '<div><b>'+AW.esc(r.topic||'')+'</b><p style="margin:2px 0 0;font-size:.82rem;color:#667">TR '+(r.tr||'—')+' · CC '+(r.cc||'—')+' · LR '+(r.lr||'—')+' · GRA '+(r.gra||'—')+'</p></div>'+
       '</div>'+
-      '<div class="rv-block" style="background:#FFF8EC"><p style="margin:0">This submission was made before detailed feedback storage was enabled, so only the score and essay are available. New submissions will show full feedback here.</p></div>'+
+      '<div class="rv-block" style="background:#FFF8EC"><p style="margin:0">'+noticeMsg+'</p></div>'+
       (r.essay?'<div class="rv-block"><h4>Your essay</h4><div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;color:#334">'+AW.esc(r.essay)+'</div></div>':'<div class="rv-block"><p style="color:#889">No essay text stored.</p></div>')+
     '</div>';
     document.getElementById('reviewModalBody').innerHTML=
