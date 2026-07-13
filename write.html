@@ -14,6 +14,18 @@
   .aw-editor-toolbar{display:flex;gap:2px;padding:8px 10px;border:1px solid var(--aw-border);border-bottom:none;border-radius:var(--aw-r) var(--aw-r) 0 0;background:var(--aw-surface-2);flex-wrap:wrap}
   .aw-tb-btn{width:32px;height:32px;border:none;background:none;border-radius:6px;cursor:pointer;color:var(--aw-ink-2);font-weight:700;display:grid;place-items:center;font-size:.9rem}
   .aw-tb-btn:hover{background:var(--aw-primary-lt);color:var(--aw-primary)}
+  .aw-hl-btn{width:24px;height:24px;border:1.5px solid rgba(0,0,0,.12);border-radius:6px;cursor:pointer;margin:0 2px;padding:0;transition:transform .1s}
+  .aw-hl-btn:hover{transform:scale(1.15)}
+  .aw-hl-clear{background:#fff !important;color:var(--aw-ink-3);font-size:.7rem;display:grid;place-items:center}
+  .aw-grade-ov{position:fixed;inset:0;background:rgba(16,34,46,.55);backdrop-filter:blur(3px);z-index:700;display:none;align-items:center;justify-content:center}
+  .aw-grade-ov.show{display:flex}
+  .aw-grade-card{background:#fff;border-radius:20px;padding:38px 44px;box-shadow:0 24px 70px rgba(0,0,0,.3);text-align:center;max-width:420px;width:90%}
+  .aw-grade-card h3{font-family:var(--aw-font-display);font-size:1.15rem;margin:18px 0 16px;color:var(--aw-primary);min-height:1.4em;transition:opacity .2s}
+  .aw-grade-spin{width:52px;height:52px;border:4px solid var(--aw-primary-lt);border-top-color:var(--aw-primary);border-radius:50%;margin:0 auto;animation:awspin .8s linear infinite}
+  @keyframes awspin{to{transform:rotate(360deg)}}
+  .aw-grade-bar{height:8px;background:var(--aw-surface-2);border-radius:5px;overflow:hidden;margin:6px 0}
+  .aw-grade-fill{height:100%;width:0;background:linear-gradient(90deg,#0A6EBD,#0A93BD);border-radius:5px;transition:width .6s ease}
+  .aw-grade-sub{font-size:.82rem;color:var(--aw-ink-3);margin:12px 0 0}
   .aw-editor{min-height:calc(100vh - 300px);border:none;border-top:1px solid var(--aw-border);padding:20px 24px;font-family:var(--aw-font-body);font-size:1rem;line-height:1.8;color:var(--aw-ink);background:var(--aw-surface);outline:none;overflow-y:auto;resize:none}
   .aw-editor:focus{border-color:var(--aw-primary);box-shadow:inset 0 0 0 1px var(--aw-primary)}
   .aw-editor:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
@@ -84,6 +96,19 @@ var content = AW.renderShell({
 var startTime = new Date();
 var attempt = 1;
 
+// If we have a real assignment topicId but no prompt in the URL (e.g. via Re-try),
+// fetch the official prompt from the backend so the student sees the real đề bài.
+var hasRealTopic = qp.get('topicId') && MODE !== 'free';
+if (hasRealTopic && !qp.get('prompt')) {
+  AW.api('write.getPrompt', { topicId: TOPIC_ID }).then(function(res){
+    if (res && res.success && res.data.prompt) {
+      PROMPT = res.data.prompt;
+      var pt = document.querySelector('.aw-prompt-text');
+      if (pt) pt.innerHTML = AW.esc(AW.stripHtml(PROMPT));
+    }
+  });
+}
+
 content.innerHTML =
   (AW.geminiKey.get() ? '' :
     '<div class="aw-keybar"><span>🔑 Nhập Gemini API key (lưu trên máy bạn) để chấm bài:</span>' +
@@ -97,6 +122,14 @@ content.innerHTML =
         '<button class="aw-tb-btn" data-cmd="italic"><i>I</i></button>' +
         '<button class="aw-tb-btn" data-cmd="underline"><u>U</u></button>' +
         '<button class="aw-tb-btn" data-cmd="insertUnorderedList">•</button>' +
+        '<span style="width:1px;height:20px;background:var(--aw-border);margin:0 6px"></span>' +
+        '<span style="font-size:.75rem;color:var(--aw-ink-3);align-self:center;margin-right:4px">Highlight:</span>' +
+        '<button class="aw-hl-btn" data-hl="#FFF3A3" style="background:#FFF3A3" title="Yellow"></button>' +
+        '<button class="aw-hl-btn" data-hl="#B6F0C2" style="background:#B6F0C2" title="Green"></button>' +
+        '<button class="aw-hl-btn" data-hl="#BFE0FF" style="background:#BFE0FF" title="Blue"></button>' +
+        '<button class="aw-hl-btn" data-hl="#FFC9D6" style="background:#FFC9D6" title="Pink"></button>' +
+        '<button class="aw-hl-btn" data-hl="#E0C9FF" style="background:#E0C9FF" title="Purple"></button>' +
+        '<button class="aw-hl-btn aw-hl-clear" data-hl="clear" title="Remove highlight">✕</button>' +
       '</div>' +
       '<div class="aw-editor" id="editor" contenteditable="true" data-ph="Start writing your response here…"></div>' +
       '<div class="aw-write-meta"><span id="wc">0 words</span>' +
@@ -124,6 +157,19 @@ var editor = document.getElementById('editor');
 AW.els('.aw-tb-btn').forEach(function(b){
   b.onclick = function(){ document.execCommand(b.dataset.cmd, false, null); editor.focus(); };
 });
+AW.els('.aw-hl-btn').forEach(function(b){
+  b.onclick = function(){
+    var hl=b.dataset.hl;
+    if(hl==='clear'){
+      document.execCommand('hiliteColor', false, 'transparent');
+      document.execCommand('backColor', false, 'transparent');
+    } else {
+      // hiliteColor works in most browsers; backColor is the fallback
+      if(!document.execCommand('hiliteColor', false, hl)) document.execCommand('backColor', false, hl);
+    }
+    editor.focus();
+  };
+});
 var wc = document.getElementById('wc');
 editor.addEventListener('input', function(){
   wc.textContent = AW.wordCount(editor.innerText) + ' words';
@@ -133,7 +179,31 @@ editor.addEventListener('input', function(){
 if (RETRY) {
   editor.innerText = '';
   wc.textContent = '0 words';
-  AW.toast('New attempt — write a fresh essay','ok');
+  // check how many attempts already used — lock if 3 reached
+  AW.api('write.getAttemptCount', { studentId: sess.studentId, topicId: TOPIC_ID, mode: MODE }).then(function(res){
+    if (res && res.success && res.data.count >= 3 && MODE !== 'free') {
+      lockEditorFull();
+    } else {
+      AW.toast('New attempt — write a fresh essay','ok');
+    }
+  });
+}
+function lockEditorFull(){
+  editor.setAttribute('contenteditable','false');
+  editor.style.background='var(--aw-surface-2)';
+  editor.innerHTML='<span style="color:var(--aw-ink-3)">This task is locked — you have used all 3 attempts.</span>';
+  var gb=document.getElementById('gradeBtn');
+  if(gb){ gb.textContent='🔒 All 3 attempts used'; gb.disabled=true; }
+  // banner suggesting Free Writing
+  var box=document.querySelector('.aw-write-grid');
+  if(box){
+    var banner=document.createElement('div');
+    banner.style.cssText='grid-column:1/-1;background:#FFF8EC;border:1px solid #F0D9A0;border-radius:12px;padding:18px 20px;margin-bottom:16px';
+    banner.innerHTML='<b style="color:#B8860B">🔒 You have completed all 3 attempts for this task.</b>'+
+      '<p style="margin:8px 0 12px;color:var(--aw-ink-2);font-size:.9rem">Further revisions for this assignment are closed. To keep practising and improving your writing, try <b>Free Writing</b> mode — you can write unlimited essays on any topic and get instant AI feedback.</p>'+
+      '<button class="aw-btn aw-btn-primary" onclick="location.href=\'write.html?mode=free&topic='+encodeURIComponent('Free Writing')+'\'">✍️ Go to Free Writing</button>';
+    box.insertBefore(banner, box.firstChild);
+  }
 }
 
 /*──────── timer ────────*/
@@ -177,6 +247,7 @@ document.getElementById('gradeBtn').onclick = function(){
 
   var btn=this; btn.disabled=true; var orig=btn.textContent;
   btn.innerHTML='<span class="aw-spin"></span> Grading…';
+  showGradingOverlay();
 
   gradeWithGemini({ writing:text, question:PROMPT, attempt:attempt }, key)
     .then(function(result){
@@ -217,8 +288,51 @@ document.getElementById('gradeBtn').onclick = function(){
       }
     })
     .catch(function(e){ AW.toast(e.message||'Grading error','err'); })
-    .finally(function(){ btn.disabled=false; btn.textContent=orig; });
+    .finally(function(){ hideGradingOverlay(); btn.disabled=false; btn.textContent=orig; });
 };
+
+/*──────── fake grading progress overlay ────────*/
+var _gradeTimers=[];
+function showGradingOverlay(){
+  var ov=document.getElementById('gradeOverlay');
+  if(!ov){
+    ov=document.createElement('div');
+    ov.id='gradeOverlay';
+    ov.className='aw-grade-ov';
+    document.body.appendChild(ov);
+  }
+  var steps=[
+    {t:'Reading your essay…', d:0},
+    {t:'Assessing Task Response…', d:1400},
+    {t:'Analysing Coherence & Cohesion…', d:3000},
+    {t:'Checking Lexical Resource…', d:4600},
+    {t:'Reviewing Grammatical Range & Accuracy…', d:6200},
+    {t:'Writing personalised feedback…', d:8000},
+    {t:'Almost done…', d:10500}
+  ];
+  ov.innerHTML='<div class="aw-grade-card">'+
+    '<div class="aw-grade-spin"></div>'+
+    '<h3 id="gradeStep">Reading your essay…</h3>'+
+    '<div class="aw-grade-bar"><div class="aw-grade-fill" id="gradeFill"></div></div>'+
+    '<p class="aw-grade-sub">AI is grading your writing across all 4 IELTS criteria</p>'+
+  '</div>';
+  ov.classList.add('show');
+  _gradeTimers.forEach(clearTimeout); _gradeTimers=[];
+  steps.forEach(function(s,i){
+    _gradeTimers.push(setTimeout(function(){
+      var el=document.getElementById('gradeStep'); if(el)el.textContent=s.t;
+      var f=document.getElementById('gradeFill'); if(f)f.style.width=Math.round((i+1)/steps.length*92)+'%';
+    }, s.d));
+  });
+}
+function hideGradingOverlay(){
+  _gradeTimers.forEach(clearTimeout); _gradeTimers=[];
+  var ov=document.getElementById('gradeOverlay');
+  if(ov){
+    var f=document.getElementById('gradeFill'); if(f)f.style.width='100%';
+    setTimeout(function(){ ov.classList.remove('show'); }, 300);
+  }
+}
 
 // Grade button handles both grading and saving (submit=grade)
 function lockEditor(msg){
