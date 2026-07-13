@@ -229,5 +229,50 @@
     return tmp.textContent || tmp.innerText || '';
   };
 
+  /*──────── Today's Word widget ────────
+    Rotates at 3 AM (server-side day index) OR after every 5 logins.
+    Renders into the element with id given (default 'todaysWord').
+  */
+  AW.renderTodaysWord = function (mountId) {
+    var mount = document.getElementById(mountId || 'todaysWord');
+    if (!mount) return;
+    // login-count based advance: every 5 logins bumps the index by 1
+    var LK = 'aw_login_count';
+    var logins = parseInt(localStorage.getItem(LK) || '0', 10);
+    var forceIdx = Math.floor(logins / 5); // advance 1 word per 5 logins
+    AW.api('vocab.today', { index: forceIdx }).then(function (res) {
+      if (!res || !res.success || !res.data) { mount.innerHTML = ''; return; }
+      var d = res.data, c = d.current, prev = d.previous;
+      mount.innerHTML =
+        '<div class="aw-tw">' +
+          '<div class="aw-tw-main">' +
+            '<div class="aw-tw-eyebrow">✨ TODAY\'S WORD</div>' +
+            '<div class="aw-tw-word">' + AW.esc(c.word) +
+              (c.ipa ? '<span class="aw-tw-ipa">/' + AW.esc(c.ipa) + '/</span>' : '') +
+              (c.band ? '<span class="aw-tw-band">' + AW.esc(c.band) + '</span>' : '') +
+            '</div>' +
+            (c.meaningVi ? '<div class="aw-tw-mean">🇻🇳 ' + AW.esc(c.meaningVi) + '</div>' : '') +
+            (c.synonyms && c.synonyms.length ?
+              '<div class="aw-tw-syn"><span class="aw-tw-lbl">SYNONYMS</span>' +
+              c.synonyms.map(function (s) { return '<span class="aw-tw-chip">' + AW.esc(s) + '</span>'; }).join('') + '</div>' : '') +
+          '</div>' +
+          '<div class="aw-tw-side">' +
+            (c.examples && c.examples.length ?
+              '<div class="aw-tw-ex"><span class="aw-tw-lbl">EXAMPLES</span>' +
+              c.examples.map(function (e) { return '<p>"' + AW.esc(e) + '"</p>'; }).join('') + '</div>' : '') +
+            (prev && prev.word ?
+              '<div class="aw-tw-prev"><span class="aw-tw-prev-lbl">PREVIOUSLY</span>' +
+              '<div class="aw-tw-prev-word">' + AW.esc(prev.word) + '</div>' +
+              (prev.meaningVi ? '<div class="aw-tw-prev-mean">' + AW.esc(prev.meaningVi) + '</div>' : '') + '</div>' : '') +
+          '</div>' +
+        '</div>';
+    });
+  };
+  // call once per session to increment login count (used by rotation)
+  AW.bumpLoginCount = function () {
+    var LK = 'aw_login_count';
+    localStorage.setItem(LK, String(parseInt(localStorage.getItem(LK) || '0', 10) + 1));
+  };
+
   global.AW = AW;
 })(window);

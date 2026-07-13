@@ -100,7 +100,7 @@ document.getElementById('form').onsubmit=function(e){
   if(!id||!pass){AW.toast('Nhập đầy đủ thông tin.','err');return;}
   submitBtn.disabled=true; var o=submitBtn.textContent; submitBtn.innerHTML='<span class="aw-spin"></span>';
   AW.api('auth.studentLogin',{studentId:id,password:pass}).then(function(res){
-    if(res&&res.success){ AW.session.set(Object.assign({role:'student'},res.data)); location.href=AW.STUDENT_HOME; }
+    if(res&&res.success){ AW.session.set(Object.assign({role:"student"},res.data)); AW.bumpLoginCount(); location.href=AW.STUDENT_HOME; }
     else { AW.toast((res&&res.error)||'Đăng nhập thất bại','err'); submitBtn.disabled=false; submitBtn.textContent=o; }
   }).catch(function(){ AW.toast('Không kết nối được máy chủ.','err'); submitBtn.disabled=false; submitBtn.textContent=o; });
 };
@@ -115,7 +115,7 @@ tSubmit.onclick=function(){
   if(!email||!pass){AW.toast('Nhập email và mật khẩu.','err');return;}
   tSubmit.disabled=true; var o=tSubmit.textContent; tSubmit.innerHTML='<span class="aw-spin"></span>';
   AW.api('auth.teacherLogin',{email:email,password:pass}).then(function(res){
-    if(res&&res.success){ AW.session.set(Object.assign({role:'teacher'},res.data)); location.href=AW.TEACHER_HOME; }
+    if(res&&res.success){ AW.session.set(Object.assign({role:"teacher"},res.data)); AW.bumpLoginCount(); location.href=AW.TEACHER_HOME; }
     else { AW.toast((res&&res.error)||'Đăng nhập thất bại','err'); tSubmit.disabled=false; tSubmit.textContent=o; }
   }).catch(function(){ AW.toast('Không kết nối được máy chủ.','err'); tSubmit.disabled=false; tSubmit.textContent=o; });
 };

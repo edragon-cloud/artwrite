@@ -294,6 +294,7 @@ function showOverview(){
   AW.api('teacher.getOverview',{class:curClass()}).then(function(res){
     var d=(res&&res.data)||{avgScore:0,totalEssays:0,activeStudents:0,feedbackPending:0};
     content.innerHTML=
+      '<div id="todaysWord"></div>' +
       '<div class="aw-kpi-row">' +
         kpi('Average Class Score', d.avgScore||'—') +
         kpi('Total Essays Submitted', d.totalEssays) +
@@ -310,6 +311,7 @@ function showOverview(){
       '</div>';
     loadRecent();
     loadRoster();
+    AW.renderTodaysWord('todaysWord');
   });
 }
 function kpi(label,val){return '<div class="aw-kpi"><div class="aw-kpi-label">'+label+'</div><div class="aw-kpi-value">'+val+'</div></div>';}
@@ -705,7 +707,7 @@ function renderResults(){
       '</div>'+
       (ts.gradedAt?'<div style="font-size:.65rem;color:var(--aw-writing);margin-top:3px">✓ Graded</div>':'')+
     '</div>';
-    var topicCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:150px;max-width:200px"><b>'+AW.esc(g.topic||'')+'</b></td>';
+    var topicCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:110px;max-width:140px"><b>'+AW.esc(g.topic||'')+'</b></td>';
     var promptPlain = g.prompt ? (AW.stripHtml?AW.stripHtml(g.prompt):g.prompt.replace(/<[^>]*>/g,' ')) : '';
     var promptCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:220px;max-width:300px;font-size:.82rem;color:var(--aw-ink-2)">'+AW.esc(promptPlain)+'</td>';
     var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+'</td>'+
@@ -891,7 +893,7 @@ function loadAssignmentList(mode){
       '<th>Title</th><th>Prompt (đề bài)</th><th>Class</th><th>Required</th><th>Deadline</th></tr></thead><tbody>'+
       rows.map(function(a){
         var plain=AW.stripHtml?AW.stripHtml(a.prompt||''):(a.prompt||'').replace(/<[^>]*>/g,'');
-        return '<tr><td><b>'+AW.esc(a.topic)+'</b></td>'+
+        return '<tr><td style="max-width:180px;white-space:normal;word-break:break-word"><b>'+AW.esc(a.topic)+'</b></td>'+
           '<td style="font-size:.85rem;color:var(--aw-ink-2);max-width:340px">'+AW.esc(plain)+'</td>'+
           '<td>'+AW.esc((curClassObj()&&curClassObj().className)||a.class||curClass())+'</td>'+
           '<td style="text-align:center">'+(a.requiredAttempts||1)+'</td>'+

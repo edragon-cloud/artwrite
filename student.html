@@ -77,6 +77,7 @@ var content = AW.renderShell({
 function showModes(){
   document.getElementById('awPageTitle').textContent='Practice Modes';
   content.innerHTML =
+    '<div id="todaysWord"></div>' +
     '<div class="aw-mode-grid">' +
       modeCard('free','✍️','Free Writing','Choose any topic and get instant AI feedback. Practice at your own pace.','aw-mode-free') +
       modeCard('inclass','⏱️','In-class Practice','Timed writing assigned by your teacher, with live guidance.','aw-mode-inclass') +
@@ -84,6 +85,7 @@ function showModes(){
     '</div>' +
     '<h2 class="aw-sec-title">Recent Practice</h2>' +
     '<div id="hist" class="aw-hist-list"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div>';
+  AW.renderTodaysWord('todaysWord');
 
   AW.els('.aw-mode-card').forEach(function(c){
     c.onclick=function(){

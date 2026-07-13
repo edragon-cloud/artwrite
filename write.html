@@ -115,8 +115,17 @@ content.innerHTML =
     '<input id="keyInput" type="password" placeholder="AIza…"><button class="aw-btn aw-btn-accent" id="keySave" style="padding:6px 14px">Save</button></div>') +
   '<div class="aw-write-grid">' +
     '<div>' +
-      '<div class="aw-prompt-box"><h4>'+AW.esc(TASK_TYPE || 'IELTS Task 2 Prompt')+'</h4>' +
-        '<div class="aw-prompt-text">'+AW.stripHtml(PROMPT)+'</div></div>' +
+      (function(){
+        var isFreeNoPrompt = (MODE==='free' && !qp.get('prompt'));
+        if (isFreeNoPrompt) {
+          return '<div class="aw-prompt-box" style="border:1.5px dashed var(--aw-primary-lt)"><h4>✍️ Your prompt (đề bài)</h4>' +
+            '<textarea id="freePrompt" placeholder="Paste or type the IELTS Task 2 question you want to practice… The AI will grade your essay against this prompt." ' +
+            'style="width:100%;min-height:70px;border:1px solid var(--aw-border);border-radius:8px;padding:10px;font-size:.92rem;font-family:var(--aw-font-body);resize:vertical;box-sizing:border-box"></textarea>' +
+            '<p style="margin:8px 0 0;font-size:.78rem;color:var(--aw-ink-3)">💡 No prompt? You can still write freely — the AI will assess general Task 2 quality.</p></div>';
+        }
+        return '<div class="aw-prompt-box"><h4>'+AW.esc(TASK_TYPE || 'IELTS Task 2 Prompt')+'</h4>' +
+          '<div class="aw-prompt-text">'+AW.stripHtml(PROMPT)+'</div></div>';
+      })() +
       '<div class="aw-editor-toolbar">' +
         '<button class="aw-tb-btn" data-cmd="bold"><b>B</b></button>' +
         '<button class="aw-tb-btn" data-cmd="italic"><i>I</i></button>' +
@@ -244,6 +253,10 @@ document.getElementById('gradeBtn').onclick = function(){
   if (AW.wordCount(text) < 20) { AW.toast('Write at least 20 words before grading.','err'); return; }
   var key = AW.geminiKey.get();
   if (!key) { AW.toast('Please enter your Gemini API key first.','err'); return; }
+
+  // free-writing: use the prompt the student typed (if any)
+  var fp = document.getElementById('freePrompt');
+  if (fp && fp.value.trim()) { PROMPT = fp.value.trim(); TOPIC = fp.value.trim().slice(0,60); }
 
   var btn=this; btn.disabled=true; var orig=btn.textContent;
   btn.innerHTML='<span class="aw-spin"></span> Grading…';

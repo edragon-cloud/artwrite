@@ -222,3 +222,22 @@ h1,h2,h3,h4,.aw-display{font-family:var(--aw-font-display);letter-spacing:-.01em
 }
 .aw-menu-btn{display:none;background:none;border:none;cursor:pointer;color:var(--aw-ink);padding:4px}
 .aw-menu-btn svg{width:24px;height:24px}
+
+/*──────── Today's Word widget ────────*/
+.aw-tw{display:flex;gap:24px;background:linear-gradient(120deg,#3B2E8C 0%,#5B3FD6 55%,#6D4AE0 100%);border-radius:20px;padding:28px 32px;color:#fff;margin-bottom:24px;box-shadow:0 12px 40px rgba(80,50,200,.25);flex-wrap:wrap}
+.aw-tw-main{flex:1;min-width:280px}
+.aw-tw-side{flex:1;min-width:260px;display:flex;flex-direction:column;gap:16px;position:relative}
+.aw-tw-eyebrow{font-size:.72rem;letter-spacing:.14em;font-weight:700;color:#C9BEFF;margin-bottom:14px}
+.aw-tw-word{font-family:var(--aw-font-display,'Space Grotesk',sans-serif);font-size:2.6rem;font-weight:700;line-height:1;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.aw-tw-ipa{font-family:var(--aw-font-body);font-size:1.05rem;font-weight:400;color:#C9BEFF}
+.aw-tw-band{font-size:.72rem;font-weight:600;background:rgba(255,255,255,.16);padding:5px 12px;border-radius:20px;align-self:center}
+.aw-tw-mean{margin-top:16px;font-size:1.15rem;font-weight:500}
+.aw-tw-syn{margin-top:20px}
+.aw-tw-lbl{display:block;font-size:.68rem;letter-spacing:.12em;font-weight:700;color:#B4A6F0;margin-bottom:8px}
+.aw-tw-chip{display:inline-block;background:rgba(255,255,255,.14);padding:6px 14px;border-radius:20px;font-size:.85rem;margin:0 6px 6px 0}
+.aw-tw-ex p{font-style:italic;color:#E4DCFF;margin:0 0 10px;font-size:.95rem;line-height:1.4}
+.aw-tw-prev{background:rgba(255,255,255,.10);border-radius:14px;padding:14px 18px;text-align:right;align-self:flex-end;min-width:180px}
+.aw-tw-prev-lbl{font-size:.64rem;letter-spacing:.12em;font-weight:700;color:#B4A6F0}
+.aw-tw-prev-word{font-family:var(--aw-font-display,sans-serif);font-size:1.35rem;font-weight:700;margin-top:4px}
+.aw-tw-prev-mean{font-size:.82rem;color:#D8CFFF;margin-top:2px}
+@media(max-width:640px){.aw-tw-word{font-size:2rem}.aw-tw{padding:22px}}
