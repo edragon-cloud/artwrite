@@ -55,6 +55,8 @@
   .aw-rev-note{color:var(--aw-ink-3);font-size:.78rem}
   .aw-keybar{display:flex;gap:8px;align-items:center;background:#FFF6E5;border:1px solid #F5D98A;border-radius:var(--aw-r-sm);padding:10px 12px;margin-bottom:16px;font-size:.85rem;color:#7A5A0A}
   .aw-keybar input{flex:1;border:1px solid #E8C566;border-radius:6px;padding:6px 10px;font-family:var(--aw-font-body)}
+  .aw-key-link{font-size:.78rem;color:#0A6EBD;text-decoration:none;font-weight:600;white-space:nowrap}
+  .aw-key-link:hover{text-decoration:underline}
   .aw-tutor-fab{position:fixed;bottom:24px;right:24px;z-index:400;background:linear-gradient(135deg,#0A6EBD,#0A93BD);color:#fff;border:none;border-radius:30px;padding:14px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:0 8px 28px rgba(10,110,189,.4)}
   .aw-tutor-fab:hover{transform:translateY(-2px)}
   .aw-ask-fab{position:fixed;bottom:24px;right:24px;z-index:400;background:linear-gradient(135deg,#2E9367,#1E7E42);color:#fff;border:none;border-radius:30px;padding:14px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:0 8px 28px rgba(46,147,103,.4)}
@@ -141,8 +143,9 @@ if (hasRealTopic) {
 
 content.innerHTML =
   (AW.geminiKey.get() ? '' :
-    '<div class="aw-keybar"><span>🔑 Nhập Gemini API key (lưu trên máy bạn) để chấm bài:</span>' +
-    '<input id="keyInput" type="password" placeholder="AIza…"><button class="aw-btn aw-btn-accent" id="keySave" style="padding:6px 14px">Save</button></div>') +
+    '<div class="aw-keybar"><span>🔑 Enter your Gemini API key (stored on your device) to grade essays:</span>' +
+    '<input id="keyInput" type="password" placeholder="AIza…"><button class="aw-btn aw-btn-accent" id="keySave" style="padding:6px 14px">Save</button>' +
+    '<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="aw-key-link">→ Get a free key</a></div>') +
   '<div class="aw-write-grid">' +
     '<div>' +
       (function(){
@@ -198,7 +201,8 @@ content.innerHTML =
       '</div>' +
       '<div class="aw-tutor-warn">⚠️ This chat is <b>not saved</b>. The tutor explains grammar, vocabulary & logic — it will <b>not</b> write, rewrite or polish text for you.</div>' +
       (AW.groqKey.get() ? '' :
-        '<div class="aw-tutor-keybar"><input id="groqKeyInput" type="password" placeholder="Paste your Groq API key…"><button class="aw-btn aw-btn-accent" id="groqKeySave" style="padding:6px 12px">Save</button></div>') +
+        '<div class="aw-tutor-keybar" style="flex-wrap:wrap"><input id="groqKeyInput" type="password" placeholder="Paste your Groq API key…"><button class="aw-btn aw-btn-accent" id="groqKeySave" style="padding:6px 12px">Save</button>' +
+        '<a href="https://console.groq.com/keys" target="_blank" rel="noopener" class="aw-key-link" style="width:100%;margin-top:4px">→ Get a free Groq key</a></div>') +
       '<div class="aw-tutor-msgs" id="tutorMsgs"><div class="aw-tutor-msg bot">Hi! Ask me about grammar, vocabulary, collocations or how to structure your ideas. I won\'t write sentences for you — but I\'ll help you write them yourself. 🙂</div></div>' +
       '<div class="aw-tutor-input"><input id="tutorInput" placeholder="Ask about grammar, a word, structure…"><button class="aw-btn aw-btn-primary" id="tutorSend" style="padding:8px 14px">Send</button></div>' +
     '</div>'

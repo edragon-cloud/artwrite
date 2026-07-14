@@ -45,6 +45,7 @@
 <body>
 <div id="app"></div>
 <div class="aw-rev-bg" id="reviewModal"><div class="aw-rev-modal" id="reviewModalBody"></div></div>
+<div class="aw-rev-bg" id="discussModal"><div class="aw-rev-modal dm-body" style="max-width:480px"></div></div>
 
 <script src="aw-common.js"></script>
 <script>
@@ -61,6 +62,7 @@ var nav = [
   { id:'board',   label:'Interactive Board', icon:'modes', href:'board.html' },
   { id:'library', label:'Library', icon:'library', href:'library.html' },
   { id:'progress',label:'My Progress', icon:'progress' },
+  { id:'qa',      label:'Q&A with Teacher', icon:'results' },
   { id:'settings',label:'Settings', icon:'settings' },
 ];
 
@@ -69,6 +71,7 @@ var content = AW.renderShell({
   onNav: function(id){
     if(id==='modes') showModes();
     else if(id==='progress') showProgress();
+    else if(id==='qa') showQA();
     else if(id==='settings') showSettings();
     AW.setActiveNav(id);
   }
@@ -324,13 +327,67 @@ function reviewFeedbackRec(r, refIdx){
     (r.essay?'<div class="rv-block"><h4>Your essay</h4><div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;color:#334">'+AW.esc(r.essay)+'</div></div>':'')+
   '</div>';
   document.getElementById('reviewModalBody').innerHTML=
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'+
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">'+
       '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.3rem">Feedback Review</h2>'+
-      '<div><button class="aw-btn aw-btn-accent" style="padding:6px 14px;margin-right:6px" onclick="exportGoogleDoc('+i+')">📄 Save to Google Doc</button>'+
-      '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px;margin-right:6px" onclick="exportReviewPDF()">⤓ Print/PDF</button>'+
+      '<div style="display:flex;gap:6px;flex-wrap:wrap">'+
+      '<button class="aw-btn aw-btn-accent" style="padding:6px 14px" onclick="exportGoogleDoc('+i+')">📄 Google Doc</button>'+
+      '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="exportReviewPDF()">⤓ PDF</button>'+
+      '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="shareReview('+i+')">🔗 Share</button>'+
+      '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="openDiscuss('+i+')">💬 Ask teacher</button>'+
       '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="closeReview()">Close</button></div>'+
     '</div>'+body;
   document.getElementById('reviewModal').classList.add('show');
+};
+// ── Share feedback as link or PDF ──
+window.shareReview=function(i){
+  var r=window._reviewRec||(window._myResults||[])[i]; if(!r)return;
+  var summary='ArticuWrite Feedback — '+(r.topic||'')+'\nBand '+(r.overall||'—')+
+    ' (TR '+(r.tr||'—')+' · CC '+(r.cc||'—')+' · LR '+(r.lr||'—')+' · GRA '+(r.gra||'—')+')';
+  // prefer a Google Doc link (shareable), fall back to native share / clipboard
+  AW.toast('Preparing shareable link…');
+  AW.api('write.exportDoc',{studentId:sess.studentId,topicId:r.topicId,mode:r.mode}).then(function(res){
+    if(res&&res.success&&res.data.url){
+      var link=res.data.url;
+      if(navigator.share){
+        navigator.share({title:'ArticuWrite Feedback',text:summary,url:link}).catch(function(){});
+      } else {
+        navigator.clipboard.writeText(summary+'\n'+link).then(function(){
+          AW.toast('Link copied! Paste into Zalo/Teams.','ok',4000);
+        });
+      }
+    } else {
+      AW.toast('Could not create link. Use PDF instead.','err');
+    }
+  });
+};
+// ── Discuss / report a specific feedback error to the teacher ──
+window.openDiscuss=function(i){
+  var r=window._reviewRec||(window._myResults||[])[i]; if(!r)return;
+  var bg=document.getElementById('discussModal');
+  bg.querySelector('.dm-body').innerHTML=
+    '<h2 style="margin:0 0 4px;font-family:var(--aw-font-display);font-size:1.25rem">💬 Ask your teacher</h2>'+
+    '<p style="margin:0 0 16px;color:var(--aw-ink-2);font-size:.88rem">Not sure about a correction the AI made? Ask your teacher about a specific point. Only your teacher will see this (unless they choose to share it with the class).</p>'+
+    '<div class="aw-field"><label class="aw-label">Which AI correction / error? (optional)</label>'+
+      '<input class="aw-input" id="dmError" placeholder="e.g. AI marked \'why this occurring\' as wrong"></div>'+
+    '<div class="aw-field"><label class="aw-label">Your question</label>'+
+      '<textarea class="aw-input" id="dmQuestion" rows="4" placeholder="e.g. In our lesson we were allowed to use simple present here — is this really an error?"></textarea></div>'+
+    '<div style="display:flex;gap:10px;justify-content:flex-end">'+
+      '<button class="aw-btn aw-btn-ghost" onclick="document.getElementById(\'discussModal\').classList.remove(\'show\')">Cancel</button>'+
+      '<button class="aw-btn aw-btn-primary" id="dmSend">Send to teacher</button></div>';
+  bg.classList.add('show');
+  document.getElementById('dmSend').onclick=function(){
+    var q=document.getElementById('dmQuestion').value.trim();
+    if(!q){AW.toast('Please type your question','err');return;}
+    var btn=this;btn.disabled=true;btn.textContent='Sending…';
+    AW.api('query.create',{
+      class:sess.class, studentId:sess.studentId, studentName:sess.name,
+      mode:r.mode, topic:r.topic, topicId:r.topicId, attempt:r.attempt,
+      errorQuote:document.getElementById('dmError').value.trim(), question:q
+    }).then(function(res){
+      if(res&&res.success){ AW.toast('Sent to your teacher','ok'); bg.classList.remove('show'); }
+      else AW.toast('Failed to send','err');
+    }).finally(function(){btn.disabled=false;btn.textContent='Send to teacher';});
+  };
 };
 window.closeReview=function(){document.getElementById('reviewModal').classList.remove('show');};
 window.exportGoogleDoc=function(i){
@@ -351,6 +408,35 @@ window.exportReviewPDF=function(){
   setTimeout(function(){w.print();},400);
 };
 
+function showQA(){
+  document.getElementById('awPageTitle').textContent='Q&A with Teacher';
+  content.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
+  AW.api('query.listForStudent',{studentId:sess.studentId,class:sess.class}).then(function(res){
+    var rows=(res&&res.data)||[];
+    if(!rows.length){content.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>No questions yet. When reviewing feedback, use "💬 Ask teacher" to ask about any AI correction.</p></div>';return;}
+    var mine=rows.filter(function(q){return String(q.studentId)===String(sess.studentId);});
+    var faq=rows.filter(function(q){return String(q.studentId)!==String(sess.studentId)&&q.shared;});
+    var html='<h2 class="aw-sec-title">My Questions</h2>';
+    html+= mine.length? mine.map(qaCard).join('') : '<p style="color:var(--aw-ink-3)">You haven\'t asked anything yet.</p>';
+    if(faq.length){
+      html+='<h2 class="aw-sec-title" style="margin-top:24px">📌 Class FAQ <span style="font-weight:400;font-size:.85rem;color:var(--aw-ink-3)">(shared by your teacher)</span></h2>';
+      html+=faq.map(qaCard).join('');
+    }
+    content.innerHTML=html;
+  });
+}
+function qaCard(q){
+  var answered=q.status==='answered';
+  return '<div style="border:1px solid var(--aw-border-2);border-radius:14px;padding:16px 18px;margin-bottom:12px;background:'+(answered?'#fff':'#FFF8EC')+'">'+
+    '<div style="font-size:.8rem;color:var(--aw-ink-3);margin-bottom:6px">'+AW.esc(q.topic||'')+(q.attempt?' · Attempt '+AW.esc(q.attempt):'')+'</div>'+
+    (q.errorQuote?'<div style="font-size:.85rem;background:var(--aw-surface-2);border-radius:8px;padding:6px 10px;margin-bottom:8px"><b>Re:</b> '+AW.esc(q.errorQuote)+'</div>':'')+
+    '<p style="margin:0 0 10px"><b>Q:</b> '+AW.esc(q.question)+'</p>'+
+    (answered
+      ? '<div style="background:#EAF6EF;border-radius:8px;padding:10px 12px;font-size:.9rem"><b style="color:var(--aw-writing)">Teacher:</b> '+AW.esc(q.answer)+'</div>'
+      : '<div style="font-size:.85rem;color:var(--aw-accent-dk);font-style:italic">Waiting for your teacher to answer…</div>')+
+  '</div>';
+}
+
 function showSettings(){
   document.getElementById('awPageTitle').textContent='Settings';
   var hasKey=!!AW.geminiKey.get();
@@ -358,9 +444,18 @@ function showSettings(){
     '<div class="aw-card" style="padding:24px;max-width:520px;margin-bottom:16px">' +
       '<h3 style="margin:0 0 6px">Gemini API Key</h3>' +
       '<p style="color:var(--aw-ink-2);font-size:.9rem;margin:0 0 14px">Stored on your device, never sent to the server. Needed for AI grading.</p>' +
-      '<div class="aw-pass-wrap" style="margin-bottom:12px"><input class="aw-input" id="keyIn" type="password" placeholder="'+(hasKey?'•••••••• (saved)':'AIza…')+'"></div>' +
+      '<div class="aw-pass-wrap" style="margin-bottom:6px"><input class="aw-input" id="keyIn" type="password" placeholder="'+(hasKey?'•••••••• (saved)':'AIza…')+'"></div>' +
+      '<p style="margin:0 0 12px"><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="font-size:.8rem;color:var(--aw-primary);font-weight:600;text-decoration:none">→ Get a free Gemini key at Google AI Studio</a></p>' +
       '<button class="aw-btn aw-btn-primary" id="keyBtn">Save key</button>' +
       (hasKey?' <button class="aw-btn aw-btn-ghost" id="keyClear">Remove</button>':'') +
+    '</div>' +
+    '<div class="aw-card" style="padding:24px;max-width:520px;margin-bottom:16px">' +
+      '<h3 style="margin:0 0 6px">Groq API Key <span style="font-size:.78rem;font-weight:400;color:var(--aw-ink-3)">(optional — AI Tutor in Free Writing)</span></h3>' +
+      '<p style="color:var(--aw-ink-2);font-size:.9rem;margin:0 0 14px">Stored on your device. Used only for the Free Writing AI Tutor chat.</p>' +
+      '<div class="aw-pass-wrap" style="margin-bottom:6px"><input class="aw-input" id="gqIn" type="password" placeholder="'+(AW.groqKey.get()?'•••••••• (saved)':'gsk_…')+'"></div>' +
+      '<p style="margin:0 0 12px"><a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="font-size:.8rem;color:var(--aw-primary);font-weight:600;text-decoration:none">→ Get a free Groq key</a></p>' +
+      '<button class="aw-btn aw-btn-primary" id="gqBtn">Save key</button>' +
+      (AW.groqKey.get()?' <button class="aw-btn aw-btn-ghost" id="gqClear">Remove</button>':'') +
     '</div>' +
     '<div class="aw-card" style="padding:24px;max-width:520px">' +
       '<h3 style="margin:0 0 14px">Change Password</h3>' +
@@ -375,10 +470,16 @@ function showSettings(){
   };
   var clr=document.getElementById('keyClear');
   if(clr)clr.onclick=function(){AW.geminiKey.set('');AW.toast('Key removed','ok');showSettings();};
+  document.getElementById('gqBtn').onclick=function(){
+    var k=document.getElementById('gqIn').value.trim();
+    if(k){AW.groqKey.set(k);AW.toast('Groq key saved','ok');showSettings();}
+  };
+  var gclr=document.getElementById('gqClear');
+  if(gclr)gclr.onclick=function(){AW.groqKey.set('');AW.toast('Groq key removed','ok');showSettings();};
   document.getElementById('pwBtn').onclick=function(){
     var o=document.getElementById('pwOld').value, n=document.getElementById('pwNew').value, n2=document.getElementById('pwNew2').value;
     if(!o||!n){AW.toast('Please fill all fields.','err');return;}
-    if(n!==n2){AW.toast('New password không khớp.','err');return;}
+    if(n!==n2){AW.toast('New passwords do not match.','err');return;}
     AW.api('auth.changePassword',{studentId:sess.studentId,oldPass:o,newPass:n}).then(function(res){
       if(res&&res.success)AW.toast('Password changed','ok');
       else AW.toast((res&&res.error)||'Failed','err');
