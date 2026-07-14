@@ -162,6 +162,10 @@ content.innerHTML =
         '<button class="aw-tb-btn" data-cmd="underline"><u>U</u></button>' +
         '<button class="aw-tb-btn" data-cmd="insertUnorderedList">•</button>' +
         '<span style="width:1px;height:20px;background:var(--aw-border);margin:0 6px"></span>' +
+        '<button class="aw-tb-btn" id="fontDown" title="Smaller font">A−</button>' +
+        '<button class="aw-tb-btn" id="fontUp" title="Larger font (up to 120px)" style="font-size:1.05rem">A+</button>' +
+        '<button class="aw-tb-btn" id="clearFmt" title="Clear formatting" style="font-size:.78rem;width:auto;padding:0 8px">✕ Clear</button>' +
+        '<span style="width:1px;height:20px;background:var(--aw-border);margin:0 6px"></span>' +
         '<span style="font-size:.75rem;color:var(--aw-ink-3);align-self:center;margin-right:4px">Highlight:</span>' +
         '<button class="aw-hl-btn" data-hl="#FFF3A3" style="background:#FFF3A3" title="Yellow"></button>' +
         '<button class="aw-hl-btn" data-hl="#B6F0C2" style="background:#B6F0C2" title="Green"></button>' +
@@ -223,8 +227,48 @@ if (!AW.geminiKey.get()) {
 /*──────── editor toolbar ────────*/
 var editor = document.getElementById('editor');
 AW.els('.aw-tb-btn').forEach(function(b){
+  if(!b.dataset.cmd) return; // skip font/clear buttons handled below
   b.onclick = function(){ document.execCommand(b.dataset.cmd, false, null); editor.focus(); };
 });
+// font size (real px, up to 120) + clear formatting
+function editorChangeFont(dir){
+  var sizes=[14,16,18,20,24,28,32,40,48,64,80,100,120];
+  var sel=window.getSelection();
+  if(!sel.rangeCount || sel.isCollapsed){ AW.toast('Select some text first','err'); return; }
+  var node=sel.anchorNode; node=node.nodeType===3?node.parentNode:node;
+  var cur=parseInt(window.getComputedStyle(node).fontSize,10)||16;
+  var i=0,best=1e9; sizes.forEach(function(s,si){var d=Math.abs(s-cur);if(d<best){best=d;i=si;}});
+  i=Math.max(0,Math.min(sizes.length-1,i+(dir>0?1:-1)));
+  var px=sizes[i];
+  var range=sel.getRangeAt(0), span=document.createElement('span');
+  span.style.fontSize=px+'px';
+  try{
+    span.appendChild(range.extractContents()); range.insertNode(span);
+    sel.removeAllRanges(); var nr=document.createRange(); nr.selectNodeContents(span); sel.addRange(nr);
+  }catch(e){ document.execCommand('fontSize',false,dir>0?'5':'3'); }
+  AW.toast('Font size: '+px+'px'+(px===120?' (max)':''),'ok',1000);
+  editor.focus();
+}
+document.getElementById('fontUp').onclick=function(){ editorChangeFont(1); };
+document.getElementById('fontDown').onclick=function(){ editorChangeFont(-1); };
+document.getElementById('clearFmt').onclick=function(){
+  document.execCommand('removeFormat', false, null);
+  // removeFormat doesn't clear font-size spans or highlights → strip them manually in selection
+  var sel=window.getSelection();
+  if(sel.rangeCount && !sel.isCollapsed){
+    document.execCommand('hiliteColor', false, 'transparent');
+    document.execCommand('backColor', false, 'transparent');
+    // unwrap font-size spans within selection
+    var frag=sel.getRangeAt(0).cloneContents();
+    var tmp=document.createElement('div'); tmp.appendChild(frag);
+    tmp.querySelectorAll('span[style]').forEach(function(sp){ sp.removeAttribute('style'); });
+    var r=sel.getRangeAt(0); r.deleteContents();
+    var nodes=document.createRange().createContextualFragment(tmp.innerHTML);
+    r.insertNode(nodes);
+  }
+  AW.toast('Formatting cleared','ok',1000);
+  editor.focus();
+};
 AW.els('.aw-hl-btn').forEach(function(b){
   b.onclick = function(){
     var hl=b.dataset.hl;
