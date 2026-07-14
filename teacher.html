@@ -166,6 +166,11 @@
       </div>
       <div class="aw-prompt-edit" id="aPrompt" contenteditable="true" data-ph="Enter the prompt, requirements, criteria… (line breaks & formatting supported)"></div>
     </div>
+    <div class="aw-field">
+      <label class="aw-label">🎓 Teacher's Notes for AI <span style="font-weight:400;color:var(--aw-ink-3)">(grading rules — optional)</span></label>
+      <textarea class="aw-input" id="aAiNotes" rows="3" placeholder="Tell the AI how to grade this task for your class context. E.g. 'Students may use simple present to narrate — do not flag past-tense errors.' or 'Informal tone and slang are allowed here.' The AI will follow these rules and override default IELTS strictness accordingly."></textarea>
+      <p style="margin:6px 0 0;font-size:.78rem;color:var(--aw-ink-3)">💡 Use this so the AI won't overwhelm weaker students with errors that don't apply in your lesson context.</p>
+    </div>
     <div class="aw-row" style="display:flex;gap:12px">
       <div class="aw-field" style="flex:1" id="reqField"><label class="aw-label">Required revisions</label>
         <input class="aw-input" id="aReq" type="number" value="5" min="1"></div>
@@ -203,6 +208,7 @@ var nav = [
   { id:'live',       label:'Live Observation', icon:'live' },
   { id:'assignments',label:'Assignments', icon:'modes' },
   { id:'results',    label:'Results', icon:'results' },
+  { id:'queries',    label:'Feedback Queries', icon:'results' },
   { id:'board',      label:'Interactive Board', icon:'modes', href:'board.html' },
   { id:'library',    label:'Library', icon:'library', href:'library.html' },
   { id:'settings',   label:'Settings', icon:'settings' },
@@ -217,6 +223,7 @@ var content = AW.renderShell({
     else if(id==='live') showLive();
     else if(id==='assignments') showAssignments();
     else if(id==='results') showResults();
+    else if(id==='queries') showQueries();
     else if(id==='settings') showSettings();
     AW.setActiveNav(id);
   }
@@ -362,7 +369,9 @@ function showLive(){
       '</div>'+
       '<div class="aw-live-wrap">' +
         '<div><div id="liveGrid" class="aw-live-grid"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div></div>' +
-        '<div class="aw-live-side"><h4>Session Stats</h4><div id="liveStats"></div>' +
+        '<div class="aw-live-side"><h4>🙋 Live Questions <span id="liveQCount" style="font-weight:400;color:var(--aw-danger)"></span></h4>' +
+          '<div id="liveQuestions" style="margin-bottom:16px"><p style="font-size:.8rem;color:var(--aw-ink-3)">No questions yet.</p></div>' +
+          '<h4>Session Stats</h4><div id="liveStats"></div>' +
           '<p style="font-size:.78rem;color:var(--aw-ink-3);margin-top:14px">Click a student to open their live essay and add suggestions.</p></div>' +
       '</div>';
     document.getElementById('liveTaskSel').onchange=function(){ liveTaskFilter=this.value; renderLive(); };
@@ -376,6 +385,36 @@ function pollLive(){
     // Live Observation only tracks students doing In-class Practice
     liveData=((res&&res.data)||[]).filter(function(s){ return s.mode==='inclass'; });
     renderLive();
+  });
+  pollLiveQuestions();
+}
+function pollLiveQuestions(){
+  AW.api('query.listLive',{class:curClass()}).then(function(res){
+    var qs=(res&&res.data)||[];
+    var open=qs.filter(function(q){return q.status==='open';});
+    var box=document.getElementById('liveQuestions'); if(!box)return;
+    var cnt=document.getElementById('liveQCount'); if(cnt)cnt.textContent=open.length?('· '+open.length+' new'):'';
+    if(!qs.length){ box.innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">No questions yet.</p>'; return; }
+    box.innerHTML=qs.slice(0,8).map(function(q){
+      var answered=q.status==='answered';
+      return '<div style="border:1px solid var(--aw-border-2);border-radius:10px;padding:9px 11px;margin-bottom:8px;background:'+(answered?'#fff':'#FFF8EC')+'">'+
+        '<div style="font-size:.76rem;color:var(--aw-ink-3);margin-bottom:3px"><b style="color:var(--aw-ink)">'+AW.esc(q.studentName||q.studentId)+'</b> · '+AW.esc(q.topic||'')+'</div>'+
+        '<div style="font-size:.85rem;margin-bottom:6px">'+AW.esc(q.question)+'</div>'+
+        (answered
+          ? '<div style="font-size:.8rem;background:#EAF6EF;border-radius:6px;padding:5px 8px"><b style="color:var(--aw-writing)">You:</b> '+AW.esc(q.answer)+'</div>'+
+            '<button class="aw-btn aw-btn-ghost lqShare" data-id="'+AW.esc(q.queryId)+'" data-shared="'+(q.shared?'1':'0')+'" style="padding:2px 10px;font-size:.72rem;margin-top:5px">'+(q.shared?'✓ Shared':'Share to class')+'</button>'
+          : '<div style="display:flex;gap:5px"><input class="aw-input lqAns" data-id="'+AW.esc(q.queryId)+'" placeholder="Quick answer…" style="flex:1;padding:5px 8px;font-size:.8rem"><button class="aw-btn aw-btn-primary lqSend" data-id="'+AW.esc(q.queryId)+'" style="padding:5px 10px;font-size:.75rem">Reply</button></div>')+
+      '</div>';
+    }).join('');
+    AW.els('.lqSend').forEach(function(b){ b.onclick=function(){
+      var inp=document.querySelector('.lqAns[data-id="'+b.dataset.id+'"]'); var a=inp.value.trim();
+      if(!a){AW.toast('Type a reply','err');return;}
+      AW.api('query.answer',{queryId:b.dataset.id,answer:a}).then(function(r){ if(r&&r.success){AW.toast('Replied','ok');pollLiveQuestions();} });
+    };});
+    AW.els('.lqShare').forEach(function(b){ b.onclick=function(){
+      var mk=b.dataset.shared!=='1';
+      AW.api('query.share',{queryId:b.dataset.id,shared:mk}).then(function(r){ if(r&&r.success){AW.toast(mk?'Shared':'Unshared','ok');pollLiveQuestions();} });
+    };});
   });
 }
 function renderLive(){
@@ -907,6 +946,7 @@ window.newAssignment=function(mode){
   document.getElementById('assignTitle').textContent = assignMode==='homework'?'New Homework':'New In-class Task';
   document.getElementById('aTopic').value='';
   document.getElementById('aPrompt').innerHTML='';
+  document.getElementById('aAiNotes').value='';
   document.getElementById('reqField').style.display = assignMode==='homework'?'':'none';
   document.getElementById('durField').style.display = assignMode==='inclass'?'':'none';
   document.getElementById('deadField').style.display = assignMode==='homework'?'':'none';
@@ -924,6 +964,7 @@ document.getElementById('aCreate').onclick=function(){
   var btn=this; btn.disabled=true; var o=btn.textContent; btn.innerHTML='<span class="aw-spin"></span>';
   AW.api('teacher.createAssignment',{
     class:curClass(), mode:assignMode, topic:topic, prompt:promptHtml,
+    aiNotes:document.getElementById('aAiNotes').value.trim(),
     requiredAttempts:assignMode==='homework'?parseInt(document.getElementById('aReq').value||'1',10):1,
     durationMin:assignMode==='inclass'?parseInt(document.getElementById('aDur').value||'0',10):'',
     deadline:assignMode==='homework'?document.getElementById('aDead').value:''
@@ -932,6 +973,56 @@ document.getElementById('aCreate').onclick=function(){
     else AW.toast('Failed to create','err');
   }).finally(function(){ btn.disabled=false; btn.textContent=o; });
 };
+
+/*═══════════ FEEDBACK QUERIES (student questions about AI feedback) ═══════════*/
+function showQueries(){
+  document.getElementById('awPageTitle').textContent='Feedback Queries';
+  content.innerHTML='<div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div>';
+  AW.api('query.listForTeacher',{class:curClass()}).then(function(res){
+    var rows=(res&&res.data)||[];
+    if(!rows.length){content.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>No feedback queries yet. When students ask about an AI correction, it appears here.</p></div>';return;}
+    var open=rows.filter(function(q){return q.status==='open';});
+    content.innerHTML=
+      '<p style="color:var(--aw-ink-2);margin:0 0 16px">'+open.length+' unanswered · '+rows.length+' total. Answers are private to the student unless you share them with the class.</p>'+
+      '<div style="display:flex;flex-direction:column;gap:14px">'+
+      rows.map(function(q){
+        var answered=q.status==='answered';
+        return '<div style="border:1px solid var(--aw-border-2);border-radius:14px;padding:16px 18px;background:'+(answered?'#fff':'#FFF8EC')+'">'+
+          '<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px">'+
+            '<b>'+AW.esc(q.studentName||q.studentId)+' <span style="color:var(--aw-ink-3);font-weight:400">('+AW.esc(q.studentId)+')</span></b>'+
+            '<span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(q.mode)+' · '+AW.esc(q.topic||'')+(q.attempt?' · Attempt '+AW.esc(q.attempt):'')+'</span>'+
+          '</div>'+
+          (q.errorQuote?'<div style="font-size:.85rem;background:var(--aw-surface-2);border-radius:8px;padding:6px 10px;margin-bottom:8px"><b>Re:</b> '+AW.esc(q.errorQuote)+'</div>':'')+
+          '<p style="margin:0 0 10px">'+AW.esc(q.question)+'</p>'+
+          (answered
+            ? '<div style="background:#EAF6EF;border-radius:8px;padding:10px 12px;font-size:.9rem"><b style="color:var(--aw-writing)">Your answer:</b> '+AW.esc(q.answer)+'</div>'+
+              '<div style="margin-top:8px;display:flex;gap:8px;align-items:center">'+
+                '<button class="aw-btn aw-btn-ghost qShare" data-id="'+AW.esc(q.queryId)+'" data-shared="'+(q.shared?'1':'0')+'" style="padding:4px 12px;font-size:.78rem">'+(q.shared?'✓ Shared with class (click to unshare)':'Share to class')+'</button>'+
+              '</div>'
+            : '<div style="display:flex;gap:8px;margin-top:6px"><input class="aw-input qAns" data-id="'+AW.esc(q.queryId)+'" placeholder="Type your answer…" style="flex:1"><button class="aw-btn aw-btn-primary qSend" data-id="'+AW.esc(q.queryId)+'" style="padding:8px 16px">Answer</button></div>')+
+        '</div>';
+      }).join('')+'</div>';
+    AW.els('.qSend').forEach(function(b){
+      b.onclick=function(){
+        var inp=document.querySelector('.qAns[data-id="'+b.dataset.id+'"]');
+        var ans=inp.value.trim(); if(!ans){AW.toast('Type an answer','err');return;}
+        b.disabled=true;
+        AW.api('query.answer',{queryId:b.dataset.id,answer:ans}).then(function(res){
+          if(res&&res.success){AW.toast('Answer sent','ok');showQueries();}
+          else AW.toast('Failed','err');
+        });
+      };
+    });
+    AW.els('.qShare').forEach(function(b){
+      b.onclick=function(){
+        var makeShared=b.dataset.shared!=='1';
+        AW.api('query.share',{queryId:b.dataset.id,shared:makeShared}).then(function(res){
+          if(res&&res.success){AW.toast(makeShared?'Shared with class':'Unshared','ok');showQueries();}
+        });
+      };
+    });
+  });
+}
 
 /*═══════════ SETTINGS ═══════════*/
 function showSettings(){
@@ -989,6 +1080,7 @@ function routeInitial(){
   var hash=(location.hash||'').replace('#','');
   if(hash==='live'){showLive();AW.setActiveNav('live');}
   else if(hash==='results'){showResults();AW.setActiveNav('results');}
+  else if(hash==='queries'){showQueries();AW.setActiveNav('queries');}
   else if(hash==='assignments'){showAssignments();AW.setActiveNav('assignments');}
   else showOverview();
 }

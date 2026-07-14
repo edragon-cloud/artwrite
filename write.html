@@ -55,6 +55,24 @@
   .aw-rev-note{color:var(--aw-ink-3);font-size:.78rem}
   .aw-keybar{display:flex;gap:8px;align-items:center;background:#FFF6E5;border:1px solid #F5D98A;border-radius:var(--aw-r-sm);padding:10px 12px;margin-bottom:16px;font-size:.85rem;color:#7A5A0A}
   .aw-keybar input{flex:1;border:1px solid #E8C566;border-radius:6px;padding:6px 10px;font-family:var(--aw-font-body)}
+  .aw-tutor-fab{position:fixed;bottom:24px;right:24px;z-index:400;background:linear-gradient(135deg,#0A6EBD,#0A93BD);color:#fff;border:none;border-radius:30px;padding:14px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:0 8px 28px rgba(10,110,189,.4)}
+  .aw-tutor-fab:hover{transform:translateY(-2px)}
+  .aw-ask-fab{position:fixed;bottom:24px;right:24px;z-index:400;background:linear-gradient(135deg,#2E9367,#1E7E42);color:#fff;border:none;border-radius:30px;padding:14px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:0 8px 28px rgba(46,147,103,.4)}
+  .aw-ask-fab:hover{transform:translateY(-2px)}
+  .aw-ask-head{background:linear-gradient(135deg,#2E9367,#1E7E42);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+  .aw-tutor-panel{position:fixed;bottom:24px;right:24px;z-index:401;width:380px;max-width:calc(100vw - 32px);height:540px;max-height:calc(100vh - 48px);background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.3);display:none;flex-direction:column;overflow:hidden}
+  .aw-tutor-panel.show{display:flex}
+  .aw-tutor-head{background:linear-gradient(135deg,#0A6EBD,#0A93BD);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+  .aw-tutor-badge{display:inline-block;background:rgba(255,255,255,.2);font-size:.66rem;padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle}
+  .aw-tutor-warn{background:#FFF6E5;color:#7A5A0A;font-size:.76rem;padding:9px 14px;line-height:1.4;border-bottom:1px solid #F5D98A}
+  .aw-tutor-keybar{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--aw-border-2)}
+  .aw-tutor-keybar input{flex:1;border:1px solid var(--aw-border);border-radius:6px;padding:6px 10px;font-size:.85rem}
+  .aw-tutor-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+  .aw-tutor-msg{max-width:85%;padding:9px 13px;border-radius:14px;font-size:.88rem;line-height:1.45;white-space:pre-wrap}
+  .aw-tutor-msg.bot{background:var(--aw-surface-2);color:var(--aw-ink);align-self:flex-start;border-bottom-left-radius:4px}
+  .aw-tutor-msg.user{background:var(--aw-primary);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+  .aw-tutor-input{display:flex;gap:6px;padding:12px;border-top:1px solid var(--aw-border-2)}
+  .aw-tutor-input input{flex:1;border:1px solid var(--aw-border);border-radius:20px;padding:9px 14px;font-size:.88rem}
 </style>
 </head>
 <body>
@@ -75,6 +93,7 @@ var qp = new URLSearchParams(location.search);
 var MODE = qp.get('mode') || 'free';               // free | homework | inclass
 var TOPIC = qp.get('topic') || 'Free Writing';
 var PROMPT = qp.get('prompt') || 'Write about your opinion on the given topic.';
+var AI_NOTES = '';  // teacher's grading rules for this task (context)
 var TASK_TYPE = qp.get('type') || '';
 var TOPIC_ID = qp.get('topicId') || ('T' + Date.now().toString(36));
 var RETRY = qp.get('retry') === '1';
@@ -99,12 +118,15 @@ var attempt = 1;
 // If we have a real assignment topicId but no prompt in the URL (e.g. via Re-try),
 // fetch the official prompt from the backend so the student sees the real đề bài.
 var hasRealTopic = qp.get('topicId') && MODE !== 'free';
-if (hasRealTopic && !qp.get('prompt')) {
+if (hasRealTopic) {
   AW.api('write.getPrompt', { topicId: TOPIC_ID }).then(function(res){
-    if (res && res.success && res.data.prompt) {
-      PROMPT = res.data.prompt;
-      var pt = document.querySelector('.aw-prompt-text');
-      if (pt) pt.innerHTML = AW.esc(AW.stripHtml(PROMPT));
+    if (res && res.success) {
+      if (res.data.prompt && !qp.get('prompt')) {
+        PROMPT = res.data.prompt;
+        var pt = document.querySelector('.aw-prompt-text');
+        if (pt) pt.innerHTML = AW.esc(AW.stripHtml(PROMPT));
+      }
+      AI_NOTES = res.data.aiNotes || '';  // teacher's grading rules
     }
   });
 }
@@ -151,7 +173,31 @@ content.innerHTML =
       '<div id="sideBody"><p style="color:var(--aw-ink-3);font-size:.88rem">When finished, click <b>Get AI Feedback</b> to get your score and feedback.</p></div>' +
       '<div id="submitStatus" style="margin-top:14px;text-align:center;display:none"><span style="color:var(--aw-writing);font-weight:600">✓ Submitted</span></div>' +
     '</div>' +
-  '</div>';
+  '</div>' +
+  (MODE==='free' ?
+    '<button class="aw-tutor-fab" id="tutorFab" title="Ask the AI writing tutor">💬 AI Tutor</button>' +
+    '<div class="aw-tutor-panel" id="tutorPanel">' +
+      '<div class="aw-tutor-head">' +
+        '<div><b>AI Writing Tutor</b><span class="aw-tutor-badge">Free Writing only</span></div>' +
+        '<button id="tutorClose" style="background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1">×</button>' +
+      '</div>' +
+      '<div class="aw-tutor-warn">⚠️ This chat is <b>not saved</b>. The tutor explains grammar, vocabulary & logic — it will <b>not</b> write, rewrite or polish text for you.</div>' +
+      (AW.groqKey.get() ? '' :
+        '<div class="aw-tutor-keybar"><input id="groqKeyInput" type="password" placeholder="Paste your Groq API key…"><button class="aw-btn aw-btn-accent" id="groqKeySave" style="padding:6px 12px">Save</button></div>') +
+      '<div class="aw-tutor-msgs" id="tutorMsgs"><div class="aw-tutor-msg bot">Hi! Ask me about grammar, vocabulary, collocations or how to structure your ideas. I won\'t write sentences for you — but I\'ll help you write them yourself. 🙂</div></div>' +
+      '<div class="aw-tutor-input"><input id="tutorInput" placeholder="Ask about grammar, a word, structure…"><button class="aw-btn aw-btn-primary" id="tutorSend" style="padding:8px 14px">Send</button></div>' +
+    '</div>'
+  : // inclass + homework: ask the real teacher
+    '<button class="aw-ask-fab" id="askFab" title="Ask your teacher a question">🙋 Ask Teacher</button>' +
+    '<div class="aw-tutor-panel" id="askPanel">' +
+      '<div class="aw-ask-head">' +
+        '<div><b>Ask your teacher</b><span class="aw-tutor-badge">'+(MODE==='inclass'?'Live — during class':'Homework')+'</span></div>' +
+        '<button id="askClose" style="background:none;border:none;color:#fff;font-size:1.3rem;cursor:pointer;line-height:1">×</button>' +
+      '</div>' +
+      '<div class="aw-tutor-warn" style="background:#EAF2FB;color:#0A4A7A;border-color:#B8D4F0">💡 Your teacher will see your question'+(MODE==='inclass'?' live in class':'')+' and answer it. You\'ll find the reply in <b>Q&A with Teacher</b>.</div>' +
+      '<div class="aw-tutor-msgs" id="askMsgs"></div>' +
+      '<div class="aw-tutor-input"><input id="askInput" placeholder="Type your question to the teacher…"><button class="aw-btn aw-btn-primary" id="askSend" style="padding:8px 14px">Send</button></div>' +
+    '</div>');
 
 /*──────── key bar ────────*/
 if (!AW.geminiKey.get()) {
@@ -262,7 +308,7 @@ document.getElementById('gradeBtn').onclick = function(){
   btn.innerHTML='<span class="aw-spin"></span> Grading…';
   showGradingOverlay();
 
-  gradeWithGemini({ writing:text, question:PROMPT, attempt:attempt }, key)
+  gradeWithGemini({ writing:text, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES }, key)
     .then(function(result){
       lastResult=result;
       renderFeedback(result);
@@ -455,6 +501,12 @@ async function gradeWithGemini(payload, geminiKey){
     ? '\n\nThis is revision attempt '+payload.attempt+'. In "repeated_errors_vi" (Vietnamese), note whether the student repeated the same TYPES of mistakes as a typical earlier draft (grammar/vocab/coherence) and encourage improvement. For attempt 1, leave repeated_errors_vi empty.'
     : '\n\nThis is the first attempt. Leave repeated_errors_vi empty. Give COMPLETE feedback on all 4 criteria so the student learns from the start.';
   var userMessage='Grade this IELTS essay.\n\nTASK PROMPT: '+cleanQ+'\n\nSTUDENT ESSAY TO GRADE:\n---\n'+text+'\n---\n\nAll feedback must reference the student essay above and be thorough. Task Response score MUST assess how directly the essay addresses the given task prompt. If the essay goes off-topic or misses the task, TR ≤ 5.'+attemptNote;
+  // Teacher's context rules override default IELTS strictness
+  if (payload.aiNotes && payload.aiNotes.trim()) {
+    userMessage += '\n\n=== TEACHER\'S GRADING RULES (HIGHEST PRIORITY — these OVERRIDE the default IELTS strictness above) ===\n'+
+      payload.aiNotes.trim()+
+      '\n\nYou MUST follow these teacher rules. Do NOT flag, mark, or deduct points for anything the teacher has explicitly allowed or told you to ignore. Only report errors that remain genuine problems given these rules. This keeps feedback appropriate for the class context and avoids overwhelming the student with irrelevant corrections.';
+  }
   var prompt=systemInstruction+'\n\n'+userMessage;
 
   var resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key='+geminiKey,{
@@ -471,6 +523,109 @@ async function gradeWithGemini(payload, geminiKey){
   for(var ci=si;ci<clean.length;ci++){if(clean[ci]==='{')depth++;else if(clean[ci]==='}'){depth--;if(depth===0){ei=ci;break;}}}
   if(si===-1||ei===-1) throw new Error('Could not parse JSON from Gemini.');
   return applyBoost(JSON.parse(clean.substring(si,ei+1)));
+}
+
+/*──────── AI Writing Tutor (Groq) — Free Writing only ────────*/
+if (MODE === 'free') {
+  (function(){
+    var fab=document.getElementById('tutorFab'), panel=document.getElementById('tutorPanel');
+    var msgs=document.getElementById('tutorMsgs'), input=document.getElementById('tutorInput');
+    var history=[];  // in-memory only; never persisted or sent to server
+    if(fab) fab.onclick=function(){ panel.classList.add('show'); fab.style.display='none'; input && input.focus(); };
+    var closeBtn=document.getElementById('tutorClose');
+    if(closeBtn) closeBtn.onclick=function(){ panel.classList.remove('show'); fab.style.display=''; };
+    var ks=document.getElementById('groqKeySave');
+    if(ks) ks.onclick=function(){
+      var k=document.getElementById('groqKeyInput').value.trim();
+      if(k){ AW.groqKey.set(k); AW.toast('Groq key saved','ok'); document.querySelector('.aw-tutor-keybar').style.display='none'; }
+    };
+    function addMsg(text,who){
+      var d=document.createElement('div'); d.className='aw-tutor-msg '+who; d.textContent=text;
+      msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d;
+    }
+    function send(){
+      var q=(input.value||'').trim(); if(!q)return;
+      var key=AW.groqKey.get();
+      if(!key){ AW.toast('Enter your Groq API key first','err'); return; }
+      addMsg(q,'user'); input.value='';
+      history.push({role:'user',content:q});
+      var thinking=addMsg('…','bot');
+      askGroq(history,key).then(function(reply){
+        thinking.textContent=reply;
+        history.push({role:'assistant',content:reply});
+      }).catch(function(e){ thinking.textContent='⚠️ '+(e.message||'Error contacting Groq.'); });
+    }
+    if(input) input.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); send(); } };
+    var sendBtn=document.getElementById('tutorSend'); if(sendBtn) sendBtn.onclick=send;
+    // warn on leaving that chat isn't saved (only if the tutor was used)
+    window.addEventListener('beforeunload', function(e){
+      if(history.length){ e.preventDefault(); e.returnValue=''; }
+    });
+  })();
+}
+
+async function askGroq(history, key){
+  var SYSTEM = "You are an IELTS writing TUTOR for a Vietnamese student practising Free Writing. "+
+    "STRICT RULES you must always follow:\n"+
+    "1. You ONLY explain: grammar, vocabulary, collocations, word choice, logic, coherence, essay structure, and general writing concepts.\n"+
+    "2. You NEVER write, rewrite, paraphrase, 'polish', improve, or produce full sentences/paragraphs/essays for the student. NEVER give a ready-made sentence they could copy into their essay.\n"+
+    "3. If the student asks you to write/rewrite/fix/polish their text, politely REFUSE and instead guide them with questions and principles so they write it themselves.\n"+
+    "4. You may give short illustrative examples on NEUTRAL topics unrelated to their essay, to teach a concept — never on their actual essay content.\n"+
+    "5. Keep answers concise and encouraging. You may answer in Vietnamese if the student writes in Vietnamese.\n"+
+    "Stay strictly within a teaching role.";
+  var messages=[{role:'system',content:SYSTEM}].concat(history.slice(-10));
+  var res=await fetch('https://api.groq.com/openai/v1/chat/completions',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+    body:JSON.stringify({ model:'llama-3.3-70b-versatile', messages:messages, temperature:0.4, max_tokens:600 })
+  });
+  if(!res.ok){ var t=await res.text(); throw new Error('Groq error: '+res.status+(t?' '+t.slice(0,120):'')); }
+  var data=await res.json();
+  var reply=(((data.choices||[])[0]||{}).message||{}).content||'';
+  return reply.trim() || '(no response)';
+}
+
+/*──────── Ask Teacher (In-class + Homework) ────────*/
+if (MODE === 'inclass' || MODE === 'homework') {
+  (function(){
+    var fab=document.getElementById('askFab'), panel=document.getElementById('askPanel');
+    var msgs=document.getElementById('askMsgs'), input=document.getElementById('askInput');
+    if(fab) fab.onclick=function(){ panel.classList.add('show'); fab.style.display='none'; input&&input.focus(); loadMyAsks(); };
+    var cb=document.getElementById('askClose');
+    if(cb) cb.onclick=function(){ panel.classList.remove('show'); fab.style.display=''; };
+    function bubble(text,who,answer){
+      var d=document.createElement('div'); d.className='aw-tutor-msg '+who;
+      d.textContent=text; msgs.appendChild(d);
+      if(answer){ var a=document.createElement('div'); a.className='aw-tutor-msg bot';
+        a.innerHTML='<b style="color:#1E7E42">Teacher:</b> '+AW.esc(answer); msgs.appendChild(a); }
+      msgs.scrollTop=msgs.scrollHeight;
+    }
+    function loadMyAsks(){
+      AW.api('query.listForStudent',{studentId:sess.studentId,class:sess.class}).then(function(res){
+        var rows=((res&&res.data)||[]).filter(function(q){return String(q.topicId)===String(TOPIC_ID);});
+        msgs.innerHTML='';
+        if(!rows.length){ msgs.innerHTML='<div class="aw-tutor-msg bot">No questions yet for this task. Ask your teacher anything about it.</div>'; return; }
+        rows.slice().reverse().forEach(function(q){ bubble(q.question,'user',q.answer); });
+      });
+    }
+    function send(){
+      var q=(input.value||'').trim(); if(!q)return;
+      input.value='';
+      bubble(q,'user');
+      AW.api('query.create',{
+        class:sess.class, studentId:sess.studentId, studentName:sess.name,
+        mode:MODE, topic:TOPIC||PROMPT.slice(0,60), topicId:TOPIC_ID, attempt:attempt,
+        question:q, phase:'live'
+      }).then(function(res){
+        if(res&&res.success){ AW.toast('Sent to your teacher','ok'); }
+        else AW.toast('Failed to send','err');
+      });
+    }
+    if(input) input.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); send(); } };
+    var sb=document.getElementById('askSend'); if(sb) sb.onclick=send;
+    // refresh answers periodically while panel open (in-class real-time-ish)
+    setInterval(function(){ if(panel.classList.contains('show')) loadMyAsks(); }, 12000);
+  })();
 }
 </script>
 </body>
