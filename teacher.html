@@ -10,6 +10,11 @@
   .aw-live-wrap{display:grid;grid-template-columns:1fr 250px;gap:18px}
   @media(max-width:900px){.aw-live-wrap{grid-template-columns:1fr}}
   .aw-live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+  .aw-live-list{display:flex;flex-direction:column;gap:6px}
+  .aw-live-row{display:flex;align-items:center;gap:12px;padding:9px 14px;border:1px solid var(--aw-border-2);border-radius:10px;cursor:pointer;background:var(--aw-surface)}
+  .aw-live-row:hover{background:var(--aw-surface-2)}
+  .aw-live-row.sel{border-color:var(--aw-primary);box-shadow:0 0 0 2px var(--aw-primary-lt)}
+  .aw-live-av.sm{width:32px;height:32px;font-size:.8rem}
   .aw-live-cell{background:var(--aw-surface);border:1.5px solid var(--aw-border-2);border-radius:var(--aw-r);padding:12px 10px;text-align:center;cursor:pointer;transition:transform .12s,border-color .14s,box-shadow .14s}
   .aw-live-cell:hover{transform:translateY(-2px);border-color:var(--aw-primary);box-shadow:var(--aw-shadow)}
   .aw-live-cell.sel{border-color:var(--aw-primary);box-shadow:var(--aw-ring)}
@@ -23,8 +28,10 @@
   /* annotation modal */
   .aw-modal-bg{position:fixed;inset:0;background:rgba(16,34,46,.5);z-index:500;display:none;align-items:center;justify-content:center;padding:20px}
   .aw-modal-bg.show{display:flex}
-  .aw-modal{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:100%;max-width:1000px;max-height:90vh;overflow:hidden;display:grid;grid-template-columns:1fr 300px;box-shadow:var(--aw-shadow-lg)}
-  @media(max-width:800px){.aw-modal{grid-template-columns:1fr}}
+  .aw-modal{background:var(--aw-surface);border-radius:var(--aw-r-lg);width:80vw;max-width:1400px;height:80vh;max-height:80vh;overflow:hidden;display:grid;grid-template-columns:1fr 320px;box-shadow:var(--aw-shadow-lg)}
+  .aw-modal .aw-modal-doc{overflow-y:auto}
+  .aw-modal .aw-doc-text{min-height:60vh}
+  @media(max-width:800px){.aw-modal{grid-template-columns:1fr;width:95vw;height:90vh}}
   .aw-modal-doc{padding:24px;overflow-y:auto;max-height:90vh}
   .aw-modal-doc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
   .aw-doc-text{font-size:1rem;line-height:1.9;color:var(--aw-ink);white-space:pre-wrap;user-select:text;outline:none;min-height:200px;border:1px solid var(--aw-border-2);border-radius:var(--aw-r-sm);padding:16px}
@@ -109,7 +116,7 @@
     <div class="aw-modal-doc">
       <div class="aw-modal-doc-head">
         <div><b id="mStudent">Student</b> <span style="color:var(--aw-ink-3)" id="mTopic"></span></div>
-        <button class="aw-btn aw-btn-ghost" style="padding:6px 14px" id="mClose">Close</button>
+        <button class="aw-btn" style="padding:6px 18px;background:#E5484D;color:#fff;font-weight:600" id="mClose">✕ Close</button>
       </div>
       <!-- annotation toolbar -->
       <div style="display:flex;gap:2px;flex-wrap:wrap;background:var(--aw-surface-2);border:1px solid var(--aw-border-2);border-radius:var(--aw-r-sm);padding:6px;margin-bottom:8px">
@@ -354,7 +361,7 @@ function loadRoster(){
 }
 
 /*═══════════ LIVE OBSERVATION ═══════════*/
-var livePoll=null, liveSelected=null, liveData=[], liveTaskFilter='all';
+var livePoll=null, liveSelected=null, liveData=[], liveTaskFilter='all', liveView='grid';
 function showLive(){
   document.getElementById('awPageTitle').textContent='Live Observation';
   // load inclass assignments for filter
@@ -365,7 +372,11 @@ function showLive(){
     content.innerHTML=
       '<div style="display:flex;gap:12px;align-items:center;margin-bottom:16px;flex-wrap:wrap">'+
         '<select class="aw-select" id="liveTaskSel">'+taskOpts+'</select>'+
-        '<span style="font-size:.82rem;color:var(--aw-ink-3)">Polls every 6s · Click a student to view & annotate</span>'+
+        '<div style="display:flex;gap:2px;background:var(--aw-surface-2);border-radius:8px;padding:3px">'+
+          '<button class="aw-btn" id="viewGrid" style="padding:5px 12px;font-size:.8rem">▦ Grid</button>'+
+          '<button class="aw-btn" id="viewList" style="padding:5px 12px;font-size:.8rem">☰ List</button>'+
+        '</div>'+
+        '<span style="font-size:.82rem;color:var(--aw-ink-3)">Polls every 6s · Click a student to view &amp; annotate</span>'+
       '</div>'+
       '<div class="aw-live-wrap">' +
         '<div><div id="liveGrid" class="aw-live-grid"><div class="aw-empty"><span class="aw-spin aw-spin-dark"></span></div></div></div>' +
@@ -375,6 +386,16 @@ function showLive(){
           '<p style="font-size:.78rem;color:var(--aw-ink-3);margin-top:14px">Click a student to open their live essay and add suggestions.</p></div>' +
       '</div>';
     document.getElementById('liveTaskSel').onchange=function(){ liveTaskFilter=this.value; renderLive(); };
+    function setView(v){ liveView=v;
+      document.getElementById('viewGrid').style.background=v==='grid'?'var(--aw-primary)':'';
+      document.getElementById('viewGrid').style.color=v==='grid'?'#fff':'';
+      document.getElementById('viewList').style.background=v==='list'?'var(--aw-primary)':'';
+      document.getElementById('viewList').style.color=v==='list'?'#fff':'';
+      renderLive();
+    }
+    document.getElementById('viewGrid').onclick=function(){setView('grid');};
+    document.getElementById('viewList').onclick=function(){setView('list');};
+    setView('grid');
     pollLive();
     livePoll=setInterval(pollLive, 6000);
   });
@@ -426,13 +447,22 @@ function renderLive(){
     document.getElementById('liveStats').innerHTML='';return;
   }
   var counts={Writing:0,Idle:0,Offline:0,Submitted:0};
+  filtered.forEach(function(s){ counts[s.status]=(counts[s.status]||0)+1; });
+  grid.className = (liveView==='list') ? 'aw-live-list' : 'aw-live-grid';
   grid.innerHTML=filtered.map(function(s){
-    counts[s.status]=(counts[s.status]||0)+1;
     var dot=s.status==='Writing'?'writing':s.status==='Idle'?'idle':s.status==='Submitted'?'submitted':'offline';
     var init=(s.name||s.studentId).split(/\s+/).map(function(w){return w[0];}).slice(0,2).join('').toUpperCase();
+    var hand = s.raisedHand ? '<span title="Raised hand" style="margin-left:6px">✋</span>' : '';
+    if(liveView==='list'){
+      return '<div class="aw-live-row'+(liveSelected===s.studentId?' sel':'')+'" data-sid="'+AW.esc(s.studentId)+'">' +
+        '<div class="aw-live-av sm">'+AW.esc(init)+'</div>' +
+        '<div style="flex:1"><b>'+AW.esc(s.name||s.studentId)+'</b>'+hand+'<div style="font-size:.75rem;color:var(--aw-ink-3)">'+AW.esc(s.studentId)+'</div></div>' +
+        '<div style="font-size:.8rem;color:var(--aw-ink-3);margin-right:12px">'+(parseInt(s.wordCount)||0)+' words</div>' +
+        '<div class="aw-live-status"><span class="aw-dot aw-dot-'+dot+'"></span>'+s.status+'</div></div>';
+    }
     return '<div class="aw-live-cell'+(liveSelected===s.studentId?' sel':'')+'" data-sid="'+AW.esc(s.studentId)+'">' +
       '<div class="aw-live-av">'+AW.esc(init)+'</div>' +
-      '<div class="aw-live-name">'+AW.esc(s.name||s.studentId)+'</div>' +
+      '<div class="aw-live-name">'+AW.esc(s.name||s.studentId)+hand+'</div>' +
       '<div class="aw-live-status"><span class="aw-dot aw-dot-'+dot+'"></span>'+s.status+'</div></div>';
   }).join('');
   var totalWords=filtered.reduce(function(a,s){return a+(parseInt(s.wordCount)||0);},0);
@@ -441,7 +471,7 @@ function renderLive(){
     statRow('Offline',counts.Offline||0)+statRow('Submitted',counts.Submitted||0)+
     '<hr style="border:none;border-top:1px solid var(--aw-border-2);margin:10px 0">'+
     statRow('Total words',totalWords);
-  AW.els('.aw-live-cell').forEach(function(c){
+  AW.els('.aw-live-cell, .aw-live-row').forEach(function(c){
     c.onclick=function(){
       liveSelected=c.dataset.sid;
       var s=filtered.filter(function(x){return String(x.studentId)===String(liveSelected);})[0];
