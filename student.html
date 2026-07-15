@@ -151,11 +151,12 @@ function loadAssignments(mode){
     }
     content.innerHTML='<button class="aw-btn aw-btn-ghost" style="margin-bottom:18px" onclick="showModes()">← Back</button>'+
       '<div class="aw-grid">'+res.data.map(function(a){
+      var plain=AW.stripHtml(a.prompt||'').replace(/\s+/g,' ').trim();
       return '<div class="aw-lib-card" data-a=\''+AW.esc(JSON.stringify(a))+'\'>' +
         '<h3 class="aw-lib-title">'+AW.esc(a.topic)+'</h3>' +
         '<span class="aw-tag aw-tag-type">'+AW.esc(a.mode)+'</span> '+
         (a.requiredAttempts?'<span class="aw-tag aw-tag-medium">'+a.requiredAttempts+' revisions</span>':'')+
-        '<p class="aw-lib-desc">'+AW.esc((a.prompt||'').slice(0,120))+'</p></div>';
+        '<p class="aw-lib-desc">'+AW.esc(plain.slice(0,140))+(plain.length>140?'…':'')+'</p></div>';
     }).join('')+'</div>';
     AW.els('[data-a]').forEach(function(c){
       c.onclick=function(){

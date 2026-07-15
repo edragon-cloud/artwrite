@@ -172,7 +172,10 @@ function refreshBoard(){
     if(res&&res.success && res.data.updatedAt!==curBoard.updatedAt){
       curBoard=res.data;
       var canvas=document.getElementById('canvas');
-      if(canvas){ canvas.innerHTML=curBoard.content||''; }
+      if(canvas){
+        canvas.innerHTML = isTeacher ? (curBoard.content||'') : renderForStudent(curBoard.content||'');
+        applyZoom(); // keep the student's own zoom across live updates
+      }
     }
   });
 }
@@ -180,7 +183,7 @@ function stopPoll(){ if(pollTimer){clearInterval(pollTimer);pollTimer=null;} }
 
 function renderBoard(){
   document.getElementById('awPageTitle').textContent='Interactive Board';
-  var toolbar = isTeacher ? buildToolbar() : '';
+  var toolbar = isTeacher ? buildToolbar() : studentZoomBar();
   content.innerHTML =
     '<div class="aw-board-head">' +
       '<button class="aw-btn aw-btn-ghost" style="padding:7px 14px" onclick="backList()">← Boards</button>' +
@@ -196,14 +199,52 @@ function renderBoard(){
       ' data-ph="'+(isTeacher?'Type here, paste text or images, format freely…':'')+'"></div></div>';
 
   var canvas=document.getElementById('canvas');
-  canvas.innerHTML=curBoard.content||'';
+  canvas.innerHTML = isTeacher ? (curBoard.content||'') : renderForStudent(curBoard.content||'');
 
   if(isTeacher){
     wireToolbar();
     document.getElementById('boardTitle').oninput=scheduleSave;
     canvas.addEventListener('input', scheduleSave);
     canvas.addEventListener('paste', onPaste);
+  } else {
+    wireStudentZoom();
   }
+}
+
+/*── Student view ──
+  Teachers enlarge text so the whole class can read it on the projector.
+  On a student's own screen that huge text is unhelpful, so we strip the
+  teacher's font-size choices (keeping every other format: bold, colour,
+  highlight, lists, images) and give students their own zoom instead. */
+function renderForStudent(html){
+  var tmp=document.createElement('div');
+  tmp.innerHTML=html||'';
+  tmp.querySelectorAll('[style]').forEach(function(el){
+    el.style.removeProperty('font-size');
+    if(!el.getAttribute('style')) el.removeAttribute('style');
+  });
+  // legacy <font size> tags from execCommand
+  tmp.querySelectorAll('font[size]').forEach(function(el){ el.removeAttribute('size'); });
+  return tmp.innerHTML;
+}
+function studentZoomBar(){
+  return '<div class="aw-board-toolbar" id="tb" style="justify-content:flex-end">' +
+    '<span style="font-size:.8rem;color:var(--aw-ink-3);margin-right:6px">Your view:</span>' +
+    '<button class="aw-tbtn" data-szoom="out" title="Zoom out">➖</button>' +
+    '<span class="aw-zoom-ind" id="zoomInd">100%</span>' +
+    '<button class="aw-tbtn" data-szoom="in" title="Zoom in">➕</button>' +
+    '<button class="aw-tbtn" data-szoom="reset" title="Reset zoom" style="font-size:.75rem">Reset</button>' +
+  '</div>';
+}
+function wireStudentZoom(){
+  AW.els('[data-szoom]').forEach(function(b){
+    b.onclick=function(){
+      var d=b.dataset.szoom;
+      if(d==='reset') zoom=1;
+      else zoom=Math.min(3, Math.max(0.5, zoom + (d==='in'?0.1:-0.1)));
+      applyZoom();
+    };
+  });
 }
 window.backList=function(){ stopPoll(); if(isTeacher)saveNow(); showList(); };
 
@@ -260,13 +301,17 @@ function wireToolbar(){
     canvas.focus(); scheduleSave();
   };
   AW.els('[data-zoom]').forEach(function(b){
-    b.onclick=function(){ zoom=Math.max(.5,Math.min(2, zoom+(b.dataset.zoom==='in'?.1:-.1)));
-      canvas.style.transform='scale('+zoom+')';
-      document.getElementById('zoomInd').textContent=Math.round(zoom*100)+'%';
-    };
+    b.onclick=function(){ zoom=Math.max(.5,Math.min(3, zoom+(b.dataset.zoom==='in'?.1:-.1))); applyZoom(); };
   });
   document.getElementById('imgBtn').onclick=function(){ document.getElementById('imgFile').click(); };
   document.getElementById('imgFile').onchange=function(){ if(this.files[0]) handleImage(this.files[0]); };
+}
+// zoom scales the canvas view only — it is never saved into the board content
+function applyZoom(){
+  var canvas=document.getElementById('canvas'); if(!canvas)return;
+  canvas.style.transform='scale('+zoom+')';
+  var ind=document.getElementById('zoomInd');
+  if(ind) ind.textContent=Math.round(zoom*100)+'%';
 }
 function changeFont(dir){
   // apply real px font-size to the selection, stepping between preset sizes up to 120px

@@ -203,6 +203,7 @@ content.innerHTML =
     '</div>' +
   '</div>' +
   (MODE==='free' ?
+    '<button class="aw-board-fab" id="boardFab" onclick="openBoardView()" style="bottom:78px">📋 Board</button>' +
     '<button class="aw-tutor-fab" id="tutorFab" title="Ask the AI writing tutor">💬 AI Tutor</button>' +
     '<div class="aw-tutor-panel" id="tutorPanel">' +
       '<div class="aw-tutor-head">' +
@@ -218,7 +219,7 @@ content.innerHTML =
     '</div>'
   : // inclass + homework: ask the real teacher
     (MODE==='inclass'?'<button class="aw-hand-fab" id="raiseHandBtn" onclick="toggleRaiseHand()">✋ Raise hand</button>':'') +
-    (MODE==='inclass'?'<button class="aw-board-fab" id="boardFab" onclick="openBoardView()">📋 Board</button>':'') +
+    '<button class="aw-board-fab" id="boardFab" onclick="openBoardView()" style="bottom:'+(MODE==='inclass'?'132px':'78px')+'">📋 Board</button>' +
     '<button class="aw-ask-fab" id="askFab" title="Ask your teacher a question">🙋 Ask Teacher</button>' +
     '<div class="aw-tutor-panel" id="askPanel">' +
       '<div class="aw-ask-head">' +
