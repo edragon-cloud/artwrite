@@ -83,7 +83,7 @@ document.getElementById('form').onsubmit=function(e){
   if(!cls){AW.toast('Nhập Class Code do giảng viên cung cấp.','err');return;}
   submitBtn.disabled=true;var o=submitBtn.textContent;submitBtn.innerHTML='<span class="aw-spin"></span>';
   AW.api('auth.studentSignup',{studentId:sid,name:name,class:cls,birthdate:val('birthdate'),password:pass,phone:val('phone'),email:email}).then(function(res){
-    if(res&&res.success){AW.session.set(Object.assign({role:'student'},res.data));AW.toast('Tạo tài khoản thành công','ok');setTimeout(function(){location.href=AW.STUDENT_HOME;},600);}
+    if(res&&res.success){AW.session.set(Object.assign({role:'student'},res.data),{remember:false});AW.toast('Tạo tài khoản thành công','ok');setTimeout(function(){location.href=AW.STUDENT_HOME;},600);}
     else{AW.toast((res&&res.error)||'Đăng ký thất bại','err');submitBtn.disabled=false;submitBtn.textContent=o;}
   }).catch(function(){AW.toast('Không kết nối được máy chủ.','err');submitBtn.disabled=false;submitBtn.textContent=o;});
 };
@@ -97,7 +97,7 @@ tSubmit.onclick=function(){
   if(!name||!email||!pass){AW.toast('Nhập tên, email và mật khẩu.','err');return;}
   tSubmit.disabled=true;var o=tSubmit.textContent;tSubmit.innerHTML='<span class="aw-spin"></span>';
   AW.api('auth.teacherSignup',{name:name,class:'',birthdate:val('tBirth'),password:pass,phone:val('tPhone'),email:email}).then(function(res){
-    if(res&&res.success){AW.session.set(Object.assign({role:'teacher'},res.data));AW.toast('Tạo tài khoản thành công','ok');setTimeout(function(){location.href=AW.TEACHER_HOME;},600);}
+    if(res&&res.success){AW.session.set(Object.assign({role:'teacher'},res.data),{remember:false});AW.toast('Tạo tài khoản thành công','ok');setTimeout(function(){location.href=AW.TEACHER_HOME;},600);}
     else{AW.toast((res&&res.error)||'Đăng ký thất bại','err');tSubmit.disabled=false;tSubmit.textContent=o;}
   }).catch(function(){AW.toast('Không kết nối được máy chủ.','err');tSubmit.disabled=false;tSubmit.textContent=o;});
 };

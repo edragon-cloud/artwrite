@@ -63,13 +63,37 @@
 
   /*── SESSION (localStorage) ───────────────────────*/
   var SKEY = 'aw_session';
+  // Sessions expire so a device left signed in doesn't hand the next user
+  // someone else's account. "Remember me" = 12h in localStorage.
+  // Without it, the session lives in sessionStorage and dies with the tab.
+  var SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+
   AW.session = {
-    set: function (obj) { localStorage.setItem(SKEY, JSON.stringify(obj)); },
-    get: function () {
-      try { return JSON.parse(localStorage.getItem(SKEY)) || null; }
-      catch (e) { return null; }
+    // set(obj) or set(obj, {remember:true})
+    set: function (obj, opts) {
+      var remember = !opts || opts.remember !== false;
+      var payload = JSON.stringify({ data: obj, exp: Date.now() + SESSION_TTL_MS });
+      try { sessionStorage.removeItem(SKEY); } catch (e) {}
+      try { localStorage.removeItem(SKEY); } catch (e) {}
+      if (remember) localStorage.setItem(SKEY, payload);
+      else sessionStorage.setItem(SKEY, payload);
     },
-    clear: function () { localStorage.removeItem(SKEY); },
+    get: function () {
+      var raw = null;
+      try { raw = sessionStorage.getItem(SKEY) || localStorage.getItem(SKEY); } catch (e) { raw = null; }
+      if (!raw) return null;
+      try {
+        var o = JSON.parse(raw);
+        // legacy sessions (pre-expiry) had no wrapper → treat as expired
+        if (!o || !o.data || !o.exp) { AW.session.clear(); return null; }
+        if (Date.now() > o.exp) { AW.session.clear(); return null; }
+        return o.data;
+      } catch (e) { AW.session.clear(); return null; }
+    },
+    clear: function () {
+      try { localStorage.removeItem(SKEY); } catch (e) {}
+      try { sessionStorage.removeItem(SKEY); } catch (e) {}
+    },
     role: function () { var s = AW.session.get(); return s ? s.role : null; },
 
     // Redirect to login if not authenticated (optionally require a role)
@@ -88,6 +112,10 @@
   AW.geminiKey = {
     get: function () { return localStorage.getItem('aw_gemini_key') || ''; },
     set: function (k) { localStorage.setItem('aw_gemini_key', k || ''); },
+  };
+  AW.groqKey = {
+    get: function () { return localStorage.getItem('aw_groq_key') || ''; },
+    set: function (k) { localStorage.setItem('aw_groq_key', k || ''); },
   };
 
   /*── DOM + UX helpers ─────────────────────────────*/

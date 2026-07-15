@@ -1,10 +1,22 @@
 <!DOCTYPE html>
 <html lang="vi"><head><meta charset="UTF-8">
-<meta http-equiv="refresh" content="0; url=login.html">
 <title>ArticuWrite</title></head>
 <body><script>
-  try{var s=JSON.parse(localStorage.getItem('aw_session'));
-    if(s&&s.role)location.href=s.role==='teacher'?'teacher.html':'student.html';
-    else location.href='login.html';
-  }catch(e){location.href='login.html';}
-</script></body></html>
+// Route to the right dashboard, but ONLY for a session that is still valid.
+// Expired or legacy sessions are cleared so nobody lands in someone else's account.
+(function(){
+  var SKEY='aw_session';
+  function clear(){ try{localStorage.removeItem(SKEY);}catch(e){} try{sessionStorage.removeItem(SKEY);}catch(e){} }
+  var raw=null;
+  try{ raw=sessionStorage.getItem(SKEY)||localStorage.getItem(SKEY); }catch(e){}
+  if(!raw){ location.replace('login.html'); return; }
+  try{
+    var o=JSON.parse(raw);
+    // legacy format (no expiry) → force a fresh login
+    if(!o||!o.data||!o.exp||Date.now()>o.exp){ clear(); location.replace('login.html'); return; }
+    location.replace(o.data.role==='teacher'?'teacher.html':'student.html');
+  }catch(e){ clear(); location.replace('login.html'); }
+})();
+</script>
+<noscript><meta http-equiv="refresh" content="0; url=login.html"></noscript>
+</body></html>

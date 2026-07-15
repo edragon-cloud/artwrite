@@ -29,6 +29,11 @@
           <input class="aw-input" id="pw" type="password" placeholder="••••••••" autocomplete="current-password">
         </div>
       </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:.85rem;color:var(--aw-ink-2);cursor:pointer">
+        <input type="checkbox" id="rememberMe" style="width:16px;height:16px;cursor:pointer">
+        <span>Keep me signed in on this device</span>
+      </label>
+      <p style="margin:4px 0 0;font-size:.75rem;color:var(--aw-ink-3)">⚠️ Leave unchecked on shared or lab computers — you'll be signed out when you close the browser.</p>
       <button class="aw-btn aw-btn-primary aw-btn-block" id="submit" type="submit" style="margin-top:8px">Log in</button>
     </form>
 
@@ -79,6 +84,11 @@
 
 <script src="aw-common.js"></script>
 <script>
+if (window.AW && !AW.renderTodaysWord) { AW.renderTodaysWord = function(){}; }
+if (window.AW && !AW.bumpLoginCount) { AW.bumpLoginCount = function(){}; }
+if (window.AW && !AW.groqKey) { AW.groqKey = { get:function(){return localStorage.getItem('aw_groq_key')||'';}, set:function(k){localStorage.setItem('aw_groq_key',k||'');} }; }
+</script>
+<script>
 if (typeof AW === 'undefined') {
   document.body.innerHTML = '<div style="max-width:560px;margin:80px auto;padding:30px;border:2px solid #EA4335;border-radius:14px;font-family:system-ui;color:#10222E"><h2>&#9888; Kh&ocirc;ng t&#7843;i &#273;&#432;&#7907;c aw-common.js</h2><p>File <b>aw-common.js</b> v&agrave; <b>aw-theme.css</b> ph&#7843;i n&#7857;m c&ugrave;ng th&#432; m&#7909;c v&#7899;i file HTML tr&ecirc;n GitHub.</p></div>';
   throw new Error('aw-common.js not loaded');
@@ -100,7 +110,11 @@ document.getElementById('form').onsubmit=function(e){
   if(!id||!pass){AW.toast('Nhập đầy đủ thông tin.','err');return;}
   submitBtn.disabled=true; var o=submitBtn.textContent; submitBtn.innerHTML='<span class="aw-spin"></span>';
   AW.api('auth.studentLogin',{studentId:id,password:pass}).then(function(res){
-    if(res&&res.success){ AW.session.set(Object.assign({role:"student"},res.data)); AW.bumpLoginCount(); location.href=AW.STUDENT_HOME; }
+    if(res&&res.success){
+      var remember=document.getElementById('rememberMe').checked;
+      AW.session.set(Object.assign({role:"student"},res.data), {remember:remember});
+      AW.bumpLoginCount(); location.href=AW.STUDENT_HOME;
+    }
     else { AW.toast((res&&res.error)||'Đăng nhập thất bại','err'); submitBtn.disabled=false; submitBtn.textContent=o; }
   }).catch(function(){ AW.toast('Không kết nối được máy chủ.','err'); submitBtn.disabled=false; submitBtn.textContent=o; });
 };
@@ -115,7 +129,11 @@ tSubmit.onclick=function(){
   if(!email||!pass){AW.toast('Nhập email và mật khẩu.','err');return;}
   tSubmit.disabled=true; var o=tSubmit.textContent; tSubmit.innerHTML='<span class="aw-spin"></span>';
   AW.api('auth.teacherLogin',{email:email,password:pass}).then(function(res){
-    if(res&&res.success){ AW.session.set(Object.assign({role:"teacher"},res.data)); AW.bumpLoginCount(); location.href=AW.TEACHER_HOME; }
+    if(res&&res.success){
+      var rm=document.getElementById('rememberMe');
+      AW.session.set(Object.assign({role:"teacher"},res.data), {remember: rm?rm.checked:false});
+      AW.bumpLoginCount(); location.href=AW.TEACHER_HOME;
+    }
     else { AW.toast((res&&res.error)||'Đăng nhập thất bại','err'); tSubmit.disabled=false; tSubmit.textContent=o; }
   }).catch(function(){ AW.toast('Không kết nối được máy chủ.','err'); tSubmit.disabled=false; tSubmit.textContent=o; });
 };
