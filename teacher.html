@@ -384,6 +384,34 @@ function loadRoster(){
 }
 
 /*═══════════ LIVE OBSERVATION ═══════════*/
+/* IELTS band rounding: .25–.74 → .5, otherwise to the nearest whole band.
+   Shared by the Results table and the Live Observation scoring panel. */
+function awIeltsRound(avg){
+  var whole=Math.floor(avg), frac=avg-whole;
+  if(frac<0.25) return whole;
+  if(frac<0.75) return whole+0.5;
+  return whole+1;
+}
+/* Wire 4 criterion inputs so the overall box fills itself in.
+   The teacher can still type over it — a manual value is never overwritten
+   unless they change a criterion again. */
+function wireAutoOverall(critInputs, overallInput){
+  if(!overallInput || !critInputs.length) return;
+  function recalc(){
+    var nums=[];
+    critInputs.forEach(function(x){ var v=parseFloat(x.value); if(!isNaN(v)) nums.push(v); });
+    if(nums.length===critInputs.length){
+      var avg=nums.reduce(function(a,b){return a+b;},0)/nums.length;
+      overallInput.value=awIeltsRound(avg);
+    }
+  }
+  critInputs.forEach(function(inp){
+    if(inp.dataset.autoOa) return;   // already wired (modal reopened)
+    inp.dataset.autoOa='1';
+    inp.addEventListener('input', recalc);
+  });
+}
+
 var livePoll=null, liveSelected=null, liveData=[], liveTaskFilter='all', liveView='grid';
 function showLive(){
   document.getElementById('awPageTitle').textContent='Live Observation';
@@ -523,6 +551,11 @@ function openAnnotation(s){
   mText.setAttribute('contenteditable','true');
   document.getElementById('suggestList').innerHTML='<p style="font-size:.8rem;color:var(--aw-ink-3)">Chưa có đề xuất assignments yet.</p>';
   ['sTR','sCC','sLR','sGRA','sOverall'].forEach(function(id){document.getElementById(id).value='';});
+  // Overall fills itself in from the 4 criteria (IELTS rounding)
+  wireAutoOverall(
+    ['sTR','sCC','sLR','sGRA'].map(function(id){ return document.getElementById(id); }),
+    document.getElementById('sOverall')
+  );
   document.getElementById('modalBg').classList.add('show');
   // wire toolbar buttons to trigger same actions as popup
   document.getElementById('annBold').onclick=function(){ document.execCommand('bold'); };
@@ -598,8 +631,8 @@ function triggerAnnotation(type){
   else if(type==='highlight') document.getElementById('popHl').onclick();
   else if(type==='comment') document.getElementById('popComment').onclick();
 }
-// Push to Student — writes annotatedHtml back to LiveSessions snapshot
-// so student can poll and see teacher's inline marks
+// Push to Student — saves the marked-up snapshot to the Annotations tab.
+// write.html polls write.getAnnotation and shows it to the student read-only.
 document.getElementById('pushFb').onclick=function(){
   var btn=this; btn.disabled=true; var o=btn.innerHTML;
   btn.innerHTML='<span class="aw-spin"></span>';
@@ -885,27 +918,11 @@ function renderResults(){
     cell.onclick=function(){ viewEssays(+cell.dataset.openGi, +cell.dataset.openWi); };
   });
   // manual score save + auto-average overall (IELTS rounding)
-  function ieltsRound(avg){
-    // round to nearest 0.5 band (IELTS convention)
-    var whole=Math.floor(avg), frac=avg-whole;
-    if(frac<0.25) return whole;
-    if(frac<0.75) return whole+0.5;
-    return whole+1;
-  }
   AW.els('.grp-best').forEach(function(cell){
-    var critInputs=cell.querySelectorAll('.ms-in[data-f="tr"],.ms-in[data-f="cc"],.ms-in[data-f="lr"],.ms-in[data-f="gra"]');
-    var overallInput=cell.querySelector('.ms-in[data-f="overall"]');
-    if(!overallInput)return;
-    critInputs.forEach(function(inp){
-      inp.oninput=function(){
-        var nums=[];
-        critInputs.forEach(function(x){var v=parseFloat(x.value);if(!isNaN(v))nums.push(v);});
-        if(nums.length===4){
-          var avg=nums.reduce(function(a,b){return a+b;},0)/4;
-          overallInput.value=ieltsRound(avg);
-        }
-      };
-    });
+    wireAutoOverall(
+      Array.prototype.slice.call(cell.querySelectorAll('.ms-in[data-f="tr"],.ms-in[data-f="cc"],.ms-in[data-f="lr"],.ms-in[data-f="gra"]')),
+      cell.querySelector('.ms-in[data-f="overall"]')
+    );
   });
   AW.els('.ms-save').forEach(function(btn){
     btn.onclick=function(){

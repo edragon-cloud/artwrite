@@ -69,6 +69,17 @@
   .aw-board-ov.show{display:flex}
   .aw-board-ov-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#fff}
   .aw-board-ov iframe{flex:1;border:none;width:100%;background:#fff}
+  /* teacher's inline marks, mirrored from the teacher dashboard */
+  .aw-sug-del{color:var(--aw-danger);text-decoration:line-through;text-decoration-thickness:2px}
+  .aw-sug-ins{color:var(--aw-writing);font-weight:600}
+  .aw-hl{background:#FFF1A8;border-radius:2px;padding:0 1px}
+  .aw-doc-comment{border-bottom:2px dotted var(--aw-accent);cursor:help}
+  .aw-tfb-fab{position:fixed;bottom:186px;right:24px;z-index:400;background:#fff;color:#E0A32E;border:2px solid #E0A32E;border-radius:30px;padding:11px 20px;font-weight:600;font-size:.92rem;cursor:pointer;box-shadow:0 6px 20px rgba(224,163,46,.3);display:none}
+  .aw-tfb-fab.show{display:block}
+  .aw-tfb-bg{position:fixed;inset:0;background:rgba(16,34,46,.6);z-index:800;display:none;align-items:center;justify-content:center;padding:20px}
+  .aw-tfb-bg.show{display:flex}
+  .aw-tfb-modal{background:#fff;border-radius:18px;max-width:820px;width:100%;max-height:85vh;overflow-y:auto;padding:26px 30px;box-shadow:0 24px 70px rgba(0,0,0,.3)}
+  .aw-tfb-body{font-size:1rem;line-height:1.9;white-space:pre-wrap;border:1px solid var(--aw-border-2);border-radius:10px;padding:18px;margin-top:14px}
   .aw-ask-head{background:linear-gradient(135deg,#2E9367,#1E7E42);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
   .aw-tutor-panel{position:fixed;bottom:24px;right:24px;z-index:401;width:380px;max-width:calc(100vw - 32px);height:540px;max-height:calc(100vh - 48px);background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.3);display:none;flex-direction:column;overflow:hidden}
   .aw-tutor-panel.show{display:flex}
@@ -762,6 +773,61 @@ if (MODE === 'inclass' || MODE === 'homework') {
     var sb=document.getElementById('askSend'); if(sb) sb.onclick=send;
     // refresh answers periodically while panel open (in-class real-time-ish)
     setInterval(function(){ if(panel.classList.contains('show')) loadMyAsks(); }, 12000);
+  })();
+}
+
+/*──────── Teacher feedback pushed from Live Observation ────────
+  The teacher marks up a snapshot of the essay and clicks "Push to Student".
+  We show it read-only in a modal — never write it into the editor, which
+  would clobber whatever the student has typed since the snapshot. */
+if (MODE === 'inclass' || MODE === 'homework') {
+  (function(){
+    var lastSeen = null, primed = false;
+    function ensureUi(){
+      if(document.getElementById('tfbFab')) return;
+      var fab=document.createElement('button');
+      fab.id='tfbFab'; fab.className='aw-tfb-fab';
+      fab.textContent='\ud83d\udce9 Teacher feedback';
+      fab.onclick=openTeacherFeedback;
+      document.body.appendChild(fab);
+      var bg=document.createElement('div');
+      bg.id='tfbBg'; bg.className='aw-tfb-bg';
+      bg.innerHTML='<div class="aw-tfb-modal" id="tfbModal"></div>';
+      bg.onclick=function(e){ if(e.target===bg) bg.classList.remove('show'); };
+      document.body.appendChild(bg);
+    }
+    window._tfbData = null;
+    window.openTeacherFeedback = function(){
+      var d=window._tfbData; if(!d) return;
+      document.getElementById('tfbModal').innerHTML=
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'+
+          '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.25rem">\ud83d\udce9 Your teacher\'s feedback</h2>'+
+          '<button class="aw-btn" style="background:#E5484D;color:#fff;font-weight:600;padding:6px 18px" '+
+            'onclick="document.getElementById(\'tfbBg\').classList.remove(\'show\')">\u2715 Close</button>'+
+        '</div>'+
+        '<p style="margin:8px 0 0;font-size:.82rem;color:var(--aw-ink-3)">'+
+          (d.teacher?AW.esc(d.teacher)+' \u00b7 ':'')+new Date(d.timestamp).toLocaleString('vi-VN')+
+          ' \u00b7 <span style="color:var(--aw-danger)">red strike = error</span>, '+
+          '<span style="color:var(--aw-writing)">green = suggested fix</span>, yellow = highlight</p>'+
+        '<p style="margin:6px 0 0;font-size:.82rem;color:var(--aw-ink-3)">This is a snapshot of your essay when your teacher reviewed it \u2014 your current text is untouched.</p>'+
+        '<div class="aw-tfb-body">'+d.annotatedHtml+'</div>';
+      document.getElementById('tfbBg').classList.add('show');
+    };
+    function poll(){
+      AW.api('write.getAnnotation',{studentId:sess.studentId, topicId:TOPIC_ID}).then(function(res){
+        if(!res||!res.success||!res.data) return;
+        var d=res.data;
+        if(d.timestamp===lastSeen) return;
+        lastSeen=d.timestamp;
+        window._tfbData=d;
+        ensureUi();
+        document.getElementById('tfbFab').classList.add('show');
+        if(primed){ AW.toast('Your teacher sent you feedback','ok',5000); openTeacherFeedback(); }
+        primed=true;  // don't auto-open feedback that already existed on load
+      });
+    }
+    setInterval(poll, 10000);
+    setTimeout(poll, 2000);
   })();
 }
 </script>
