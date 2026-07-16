@@ -14,11 +14,23 @@
   .aw-tcolor{width:26px;height:26px;border:none;border-radius:6px;cursor:pointer;padding:0;background:none}
   .aw-canvas-wrap{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);box-shadow:var(--aw-shadow);overflow:auto;padding:0}
   .aw-canvas{min-height:60vh;padding:40px 48px;font-size:16px;line-height:1.7;color:var(--aw-ink);outline:none;transform-origin:top left;transition:transform .15s,font-size .15s;overflow-wrap:break-word}
-  .aw-canvas img{max-width:100%;height:auto}
   .aw-canvas:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
-  .aw-canvas img{max-width:100%;border-radius:8px;margin:6px 0;cursor:pointer}
+  .aw-canvas img{max-width:100%;height:auto;border-radius:8px;margin:6px 0;cursor:pointer}
   .aw-canvas img.selected{outline:2px solid var(--aw-primary);outline-offset:2px}
   .aw-img-controls{position:fixed;z-index:60;display:none;gap:4px;background:var(--aw-primary-dk);border-radius:8px;padding:4px;box-shadow:var(--aw-shadow-lg)}
+  /*── student help tools (raise hand / ask teacher) ──*/
+  .bd-hand{position:fixed;bottom:78px;right:24px;z-index:400;background:#fff;color:#E0A32E;border:2px solid #E0A32E;border-radius:30px;padding:11px 20px;font-weight:600;font-size:.92rem;cursor:pointer;box-shadow:0 6px 20px rgba(224,163,46,.3);font-family:var(--aw-font-body)}
+  .bd-hand:hover{transform:translateY(-2px)}
+  .bd-hand.on{background:#E0A32E;color:#fff}
+  .bd-ask{position:fixed;bottom:24px;right:24px;z-index:400;background:linear-gradient(135deg,#2E9367,#1E7E42);color:#fff;border:none;border-radius:30px;padding:14px 22px;font-weight:600;font-size:.95rem;cursor:pointer;box-shadow:0 8px 28px rgba(46,147,103,.4);font-family:var(--aw-font-body)}
+  .bd-ask:hover{transform:translateY(-2px)}
+  .bd-askpanel{position:fixed;bottom:24px;right:24px;z-index:401;width:360px;max-width:calc(100vw - 32px);background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.3);display:none;flex-direction:column;overflow:hidden}
+  .bd-askpanel.show{display:flex}
+  .bd-askhead{background:linear-gradient(135deg,#2E9367,#1E7E42);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+  .bd-asknote{background:#EAF2FB;color:#0A4A7A;font-size:.78rem;padding:9px 14px;line-height:1.4;border-bottom:1px solid #B8D4F0}
+  .bd-askpanel textarea{border:1px solid var(--aw-border);border-radius:8px;padding:10px;margin:12px 14px 8px;font-size:.88rem;font-family:var(--aw-font-body);resize:vertical;min-height:80px;outline:none}
+  .bd-askpanel textarea:focus{border-color:var(--aw-primary)}
+  .bd-askpanel > .aw-btn{margin:0 14px 14px;width:calc(100% - 28px)}
   .aw-img-controls button{background:none;border:none;color:#fff;padding:5px 8px;font-size:.78rem;cursor:pointer;border-radius:5px}
   .aw-img-controls button:hover{background:rgba(255,255,255,.15)}
   .aw-canvas[contenteditable="false"]{cursor:default}
@@ -227,7 +239,7 @@ function mountBoardHelp(){
         '<button id="bdAskClose" style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;line-height:1">×</button></div>' +
       '<div class="bd-asknote">Your teacher sees this live. Replies appear in <b>Q&amp;A with Teacher</b>.</div>' +
       '<textarea id="bdAskText" placeholder="Type your question about the board…"></textarea>' +
-      '<button class="aw-btn aw-btn-primary" id="bdAskSend" style="width:100%">Send</button>' +
+      '<button class="aw-btn aw-btn-primary" id="bdAskSend">Send</button>' +
     '</div>';
   document.body.appendChild(w);
 
@@ -247,8 +259,14 @@ function mountBoardHelp(){
     });
   };
   var panel=document.getElementById('bdAskPanel');
-  document.getElementById('bdAsk').onclick=function(){ panel.classList.add('show'); document.getElementById('bdAskText').focus(); };
-  document.getElementById('bdAskClose').onclick=function(){ panel.classList.remove('show'); };
+  var askFab=document.getElementById('bdAsk'), handFab=document.getElementById('bdHand');
+  function showPanel(on){
+    panel.classList.toggle('show', on);
+    askFab.style.display = on ? 'none' : '';
+    handFab.style.display = on ? 'none' : '';   // otherwise it floats over the panel
+  }
+  askFab.onclick=function(){ showPanel(true); document.getElementById('bdAskText').focus(); };
+  document.getElementById('bdAskClose').onclick=function(){ showPanel(false); };
   document.getElementById('bdAskSend').onclick=function(){
     var t=document.getElementById('bdAskText');
     var q=(t.value||'').trim(); if(!q){AW.toast('Type your question','err');return;}
