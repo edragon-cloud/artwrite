@@ -13,7 +13,8 @@
   .aw-tsep{width:1px;height:22px;background:var(--aw-border);margin:0 4px}
   .aw-tcolor{width:26px;height:26px;border:none;border-radius:6px;cursor:pointer;padding:0;background:none}
   .aw-canvas-wrap{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r);box-shadow:var(--aw-shadow);overflow:auto;padding:0}
-  .aw-canvas{min-height:60vh;padding:40px 48px;font-size:16px;line-height:1.7;color:var(--aw-ink);outline:none;transform-origin:top left;transition:transform .15s}
+  .aw-canvas{min-height:60vh;padding:40px 48px;font-size:16px;line-height:1.7;color:var(--aw-ink);outline:none;transform-origin:top left;transition:transform .15s,font-size .15s;overflow-wrap:break-word}
+  .aw-canvas img{max-width:100%;height:auto}
   .aw-canvas:empty:before{content:attr(data-ph);color:var(--aw-ink-3)}
   .aw-canvas img{max-width:100%;border-radius:8px;margin:6px 0;cursor:pointer}
   .aw-canvas img.selected{outline:2px solid var(--aw-primary);outline-offset:2px}
@@ -79,6 +80,7 @@ var content = AW.renderShell({
 });
 
 var curBoard=null, zoom=1, saveTimer=null, pollTimer=null;
+var BASE_CANVAS_PX = 16;  // matches .aw-canvas font-size; student zoom scales from this
 
 /*──── resolve which class this board belongs to ────*/
 // Teacher: use the class selected in the dashboard (localStorage 'aw_teacher_class')
@@ -208,7 +210,58 @@ function renderBoard(){
     canvas.addEventListener('paste', onPaste);
   } else {
     wireStudentZoom();
+    mountBoardHelp();
   }
+}
+
+/*── Students can raise a hand / ask the teacher while reading the board ──*/
+function mountBoardHelp(){
+  if(document.getElementById('bdHelp'))return;
+  var w=document.createElement('div');
+  w.id='bdHelp';
+  w.innerHTML=
+    '<button class="bd-hand" id="bdHand">✋ Raise hand</button>' +
+    '<button class="bd-ask" id="bdAsk">🙋 Ask Teacher</button>' +
+    '<div class="bd-askpanel" id="bdAskPanel">' +
+      '<div class="bd-askhead"><b>Ask your teacher</b>' +
+        '<button id="bdAskClose" style="background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;line-height:1">×</button></div>' +
+      '<div class="bd-asknote">Your teacher sees this live. Replies appear in <b>Q&amp;A with Teacher</b>.</div>' +
+      '<textarea id="bdAskText" placeholder="Type your question about the board…"></textarea>' +
+      '<button class="aw-btn aw-btn-primary" id="bdAskSend" style="width:100%">Send</button>' +
+    '</div>';
+  document.body.appendChild(w);
+
+  var raised=false;
+  document.getElementById('bdHand').onclick=function(){
+    raised=!raised;
+    var b=this;
+    AW.api('write.raiseHand',{
+      studentId:sess.studentId, name:sess.name, class:sess.class,
+      raised:raised, where:'Interactive Board', mode:'board'
+    }).then(function(res){
+      if(res&&res.success){
+        b.textContent=raised?'✋ Hand raised':'✋ Raise hand';
+        b.classList.toggle('on',raised);
+        AW.toast(raised?'Teacher notified you raised your hand':'Hand lowered','ok');
+      } else { raised=!raised; AW.toast('Could not reach the teacher','err'); }
+    });
+  };
+  var panel=document.getElementById('bdAskPanel');
+  document.getElementById('bdAsk').onclick=function(){ panel.classList.add('show'); document.getElementById('bdAskText').focus(); };
+  document.getElementById('bdAskClose').onclick=function(){ panel.classList.remove('show'); };
+  document.getElementById('bdAskSend').onclick=function(){
+    var t=document.getElementById('bdAskText');
+    var q=(t.value||'').trim(); if(!q){AW.toast('Type your question','err');return;}
+    var btn=this; btn.disabled=true; btn.textContent='Sending…';
+    AW.api('query.create',{
+      class:sess.class, studentId:sess.studentId, studentName:sess.name,
+      mode:'board', topic:(curBoard&&curBoard.title)||'Interactive Board',
+      topicId:(curBoard&&curBoard.boardId)||'', question:q, phase:'live'
+    }).then(function(res){
+      if(res&&res.success){ AW.toast('Sent to your teacher','ok'); t.value=''; panel.classList.remove('show'); }
+      else AW.toast('Failed to send','err');
+    }).finally(function(){ btn.disabled=false; btn.textContent='Send'; });
+  };
 }
 
 /*── Student view ──
@@ -307,9 +360,17 @@ function wireToolbar(){
   document.getElementById('imgFile').onchange=function(){ if(this.files[0]) handleImage(this.files[0]); };
 }
 // zoom scales the canvas view only — it is never saved into the board content
+// Zoom is a view-only setting — it is never saved into the board content.
+// Teacher: scales the whole canvas, so the projector shows the exact layout.
+// Student: scales the text size only, so the column keeps its width and
+// long lines simply re-wrap instead of running off the side.
 function applyZoom(){
   var canvas=document.getElementById('canvas'); if(!canvas)return;
-  canvas.style.transform='scale('+zoom+')';
+  if(isTeacher){
+    canvas.style.transform='scale('+zoom+')';
+  } else {
+    canvas.style.fontSize=(BASE_CANVAS_PX*zoom).toFixed(1)+'px';
+  }
   var ind=document.getElementById('zoomInd');
   if(ind) ind.textContent=Math.round(zoom*100)+'%';
 }

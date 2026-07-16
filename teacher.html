@@ -10,6 +10,15 @@
   .aw-live-wrap{display:grid;grid-template-columns:1fr 250px;gap:18px}
   @media(max-width:900px){.aw-live-wrap{grid-template-columns:1fr}}
   .aw-live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
+  @keyframes awSlideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+  .aw-notifs{position:fixed;bottom:20px;right:20px;z-index:900;display:flex;flex-direction:column;gap:10px;max-width:340px}
+  .aw-notif{background:var(--aw-primary-dk,#0A4A7A);color:#fff;border-radius:12px;padding:13px 14px;box-shadow:0 10px 30px rgba(0,0,0,.28);display:flex;gap:10px;align-items:flex-start;font-size:.88rem;line-height:1.4;cursor:pointer;animation:awNotifIn .25s ease}
+  .aw-notif.hand{background:linear-gradient(135deg,#E0A32E,#C8891A)}
+  .aw-notif.out{opacity:0;transform:translateX(20px);transition:opacity .3s,transform .3s}
+  .aw-notif-x{background:none;border:none;color:rgba(255,255,255,.75);font-size:1.1rem;cursor:pointer;line-height:1;padding:0 0 0 4px;flex:0 0 auto}
+  .aw-notif-x:hover{color:#fff}
+  @keyframes awNotifIn{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+  .aw-nav-badge{margin-left:auto;background:#E5484D;color:#fff;font-size:.68rem;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;padding:0 5px}
   .aw-live-list{display:flex;flex-direction:column;gap:6px}
   .aw-live-row{display:flex;align-items:center;gap:12px;padding:9px 14px;border:1px solid var(--aw-border-2);border-radius:10px;cursor:pointer;background:var(--aw-surface)}
   .aw-live-row:hover{background:var(--aw-surface-2)}
@@ -1074,6 +1083,63 @@ document.getElementById('aCreate').onclick=function(){
   }).finally(function(){ btn.disabled=false; btn.textContent=o; });
 };
 
+/*═══════════ GLOBAL NOTIFICATIONS (raised hands + new questions) ═══════════
+  Runs on every teacher page, not just Live Observation, so a student's
+  hand or question is never missed. Only *newly seen* events pop up. */
+var _seenHands = {}, _seenQueries = {}, _notifPrimed = false;
+function notify(html, kind, onClick){
+  var stack=document.getElementById('awNotif');
+  if(!stack){
+    stack=document.createElement('div'); stack.id='awNotif';
+    stack.style.cssText='position:fixed;bottom:20px;right:20px;z-index:900;display:flex;flex-direction:column;gap:10px;max-width:340px';
+    document.body.appendChild(stack);
+  }
+  var card=document.createElement('div');
+  card.style.cssText='background:#fff;border-left:5px solid '+(kind==='hand'?'#E0A32E':'#2E9367')+
+    ';border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.22);padding:13px 16px;font-size:.88rem;'+
+    'cursor:pointer;animation:awSlideIn .25s ease;display:flex;align-items:flex-start;gap:10px';
+  card.innerHTML='<div style="flex:1">'+html+'</div><button style="background:none;border:none;color:#9AA6B2;cursor:pointer;font-size:1.1rem;line-height:1;padding:0">×</button>';
+  card.querySelector('button').onclick=function(e){ e.stopPropagation(); card.remove(); };
+  card.onclick=function(){ card.remove(); if(onClick)onClick(); };
+  stack.appendChild(card);
+  setTimeout(function(){ if(card.parentNode) card.remove(); }, 12000);
+}
+function pollNotifications(){
+  if(!curClass()) return;
+  // raised hands
+  AW.api('teacher.getLive',{class:curClass()}).then(function(res){
+    var rows=(res&&res.data)||[];
+    rows.forEach(function(s){
+      var key=s.studentId;
+      if(s.raisedHand && !_seenHands[key]){
+        _seenHands[key]=true;
+        if(_notifPrimed) notify('<b>✋ '+AW.esc(s.name||s.studentId)+'</b> is raising a hand'+
+          (s.topic?'<div style="font-size:.78rem;color:#667;margin-top:2px">'+AW.esc(s.topic)+'</div>':''),
+          'hand', function(){ location.hash='live'; showLive(); AW.setActiveNav('live'); });
+      }
+      if(!s.raisedHand) delete _seenHands[key]; // lowered → can notify again next time
+    });
+  });
+  // new questions
+  AW.api('query.listForTeacher',{class:curClass()}).then(function(res){
+    var rows=(res&&res.data)||[];
+    rows.filter(function(q){return q.status==='open';}).forEach(function(q){
+      if(!_seenQueries[q.queryId]){
+        _seenQueries[q.queryId]=true;
+        if(_notifPrimed) notify('<b>🙋 '+AW.esc(q.studentName||q.studentId)+'</b> asked a question'+
+          '<div style="font-size:.8rem;color:#445;margin-top:3px">'+AW.esc((q.question||'').slice(0,90))+'</div>',
+          'ask', function(){
+            if(q.phase==='live'){ location.hash='live'; showLive(); AW.setActiveNav('live'); }
+            else { location.hash='queries'; showQueries(); AW.setActiveNav('queries'); }
+          });
+      }
+    });
+    _notifPrimed=true; // first pass only records existing state — no popup flood on load
+  });
+}
+setInterval(pollNotifications, 8000);
+setTimeout(pollNotifications, 1500);
+
 /*═══════════ FEEDBACK QUERIES (student questions about AI feedback) ═══════════*/
 function showQueries(){
   document.getElementById('awPageTitle').textContent='Feedback Queries';
@@ -1175,6 +1241,74 @@ window.archiveStudent=function(studentId,name){
   });
 };
 
+/*═══════════ global alerts: raised hands + new questions ═══════════
+  Runs on every teacher view so a raised hand is never missed, and stays
+  lightweight (no essay snapshots) to keep Apps Script quota happy. */
+var _seenHands={}, _seenQs={}, _alertFirstRun=true;
+function startAlerts(){
+  pollAlerts();
+  setInterval(pollAlerts, 12000);
+}
+function pollAlerts(){
+  if(!curClass())return;
+  AW.api('teacher.getAlerts',{class:curClass()}).then(function(res){
+    if(!res||!res.success)return;
+    var d=res.data||{};
+    var handIds={};
+    (d.hands||[]).forEach(function(h){
+      handIds[h.studentId]=1;
+      if(!_seenHands[h.studentId] && !_alertFirstRun){
+        awNotify('✋ <b>'+AW.esc(h.name||h.studentId)+'</b> is raising their hand'+
+          (h.where?'<div style="font-size:.78rem;opacity:.85;margin-top:2px">'+AW.esc(h.where)+'</div>':''), 'hand');
+      }
+      _seenHands[h.studentId]=1;
+    });
+    // clear remembered hands that were lowered so a re-raise notifies again
+    Object.keys(_seenHands).forEach(function(id){ if(!handIds[id]) delete _seenHands[id]; });
+
+    (d.questions||[]).forEach(function(q){
+      if(!_seenQs[q.queryId] && !_alertFirstRun){
+        awNotify('🙋 <b>'+AW.esc(q.name||q.studentId)+'</b> asked a question'+
+          '<div style="font-size:.8rem;opacity:.9;margin-top:3px">'+AW.esc((q.question||'').slice(0,90))+'</div>', 'question');
+      }
+      _seenQs[q.queryId]=1;
+    });
+    // badge on the sidebar
+    var openN=(d.questions||[]).length, handN=(d.hands||[]).length;
+    setNavBadge('queries', openN);
+    setNavBadge('live', handN);
+    _alertFirstRun=false;
+  });
+}
+function setNavBadge(navId, n){
+  var link=document.querySelector('[data-nav="'+navId+'"]');
+  if(!link)return;
+  var b=link.querySelector('.aw-nav-badge');
+  if(!n){ if(b)b.remove(); return; }
+  if(!b){ b=document.createElement('span'); b.className='aw-nav-badge'; link.appendChild(b); }
+  b.textContent=n;
+}
+// bottom-right notification stack
+function awNotify(html, kind){
+  var wrap=document.getElementById('awNotifs');
+  if(!wrap){
+    wrap=document.createElement('div'); wrap.id='awNotifs'; wrap.className='aw-notifs';
+    document.body.appendChild(wrap);
+  }
+  var n=document.createElement('div');
+  n.className='aw-notif'+(kind==='hand'?' hand':'');
+  n.innerHTML='<div>'+html+'</div><button class="aw-notif-x">×</button>';
+  n.querySelector('.aw-notif-x').onclick=function(){ n.remove(); };
+  n.onclick=function(e){
+    if(e.target.classList.contains('aw-notif-x'))return;
+    if(kind==='hand'){ showLive(); AW.setActiveNav('live'); }
+    else { showQueries(); AW.setActiveNav('queries'); }
+    n.remove();
+  };
+  wrap.appendChild(n);
+  setTimeout(function(){ n.classList.add('out'); setTimeout(function(){n.remove();},300); }, 9000);
+}
+
 /*═══════════ init ═══════════*/
 function routeInitial(){
   var hash=(location.hash||'').replace('#','');
@@ -1185,6 +1319,7 @@ function routeInitial(){
   else showOverview();
 }
 bootClasses();
+startAlerts();
 </script>
 </body>
 </html>

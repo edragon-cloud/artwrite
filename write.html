@@ -380,7 +380,10 @@ function sendHeartbeat(status, raiseHand){
 var handRaised=false;
 window.toggleRaiseHand=function(){
   handRaised=!handRaised;
-  sendHeartbeat(lastStatus, handRaised);
+  AW.api('write.raiseHand',{
+    studentId:sess.studentId, name:sess.name, class:sess.class,
+    topic:TOPIC, mode:MODE, status:lastStatus, raised:handRaised
+  });
   var b=document.getElementById('raiseHandBtn');
   if(b){ b.textContent=handRaised?'✋ Hand raised':'✋ Raise hand';
     b.style.background=handRaised?'#E0A32E':''; b.style.color=handRaised?'#fff':''; }
