@@ -79,11 +79,9 @@ var nav = [
 var content = AW.renderShell({
   mount:'app', nav:nav, eyebrow:'Student Interface', title:'Practice Modes',
   onNav: function(id){
-    if(id==='modes') showModes();
-    else if(id==='progress') showProgress();
-    else if(id==='qa') showQA();
-    else if(id==='settings') showSettings();
-    AW.setActiveNav(id);
+    // set the hash; routeFromHash() does the rendering (single source of truth)
+    if((location.hash||'').replace('#','')===id) return;
+    location.hash=id;
   }
 });
 
@@ -498,7 +496,18 @@ function showSettings(){
   };
 }
 
-showModes();
+/*──────── deep-link routing ────────
+  Other pages (e.g. board.html) link back here with a hash, so honour it
+  instead of always dropping the student on Practice Modes. */
+function routeFromHash(){
+  var h=(location.hash||'').replace('#','');
+  if(h==='progress'){ showProgress(); AW.setActiveNav('progress'); }
+  else if(h==='qa'){ showQA(); AW.setActiveNav('qa'); }
+  else if(h==='settings'){ showSettings(); AW.setActiveNav('settings'); }
+  else { showModes(); AW.setActiveNav('modes'); }   // '' or 'modes'
+}
+window.addEventListener('hashchange', routeFromHash);
+routeFromHash();
 </script>
 </body>
 </html>
