@@ -24,6 +24,10 @@
   .aw-live-row:hover{background:var(--aw-surface-2)}
   .aw-live-row.sel{border-color:var(--aw-primary);box-shadow:0 0 0 2px var(--aw-primary-lt)}
   .aw-live-av.sm{width:32px;height:32px;font-size:.8rem}
+  .aw-lower-hand{background:#FFF8EC;border:1px solid #E0A32E;color:#B8860B;border-radius:16px;padding:4px 11px;font-size:.74rem;font-weight:600;cursor:pointer;white-space:nowrap}
+  .aw-lower-hand:hover{background:#E0A32E;color:#fff}
+  .aw-live-cell .aw-lower-hand{margin-top:8px;width:100%}
+  .aw-live-cell.hand,.aw-live-row.hand{border-color:#E0A32E;background:#FFFCF5}
   .aw-live-cell{background:var(--aw-surface);border:1.5px solid var(--aw-border-2);border-radius:var(--aw-r);padding:12px 10px;text-align:center;cursor:pointer;transition:transform .12s,border-color .14s,box-shadow .14s}
   .aw-live-cell:hover{transform:translateY(-2px);border-color:var(--aw-primary);box-shadow:var(--aw-shadow)}
   .aw-live-cell.sel{border-color:var(--aw-primary);box-shadow:var(--aw-ring)}
@@ -504,17 +508,22 @@ function renderLive(){
     var dot=s.status==='Writing'?'writing':s.status==='Idle'?'idle':s.status==='Submitted'?'submitted':'offline';
     var init=(s.name||s.studentId).split(/\s+/).map(function(w){return w[0];}).slice(0,2).join('').toUpperCase();
     var hand = s.raisedHand ? '<span title="Raised hand" style="margin-left:6px">✋</span>' : '';
+    var lower = s.raisedHand
+      ? '<button class="aw-lower-hand" data-lower="'+AW.esc(s.studentId)+'" data-name="'+AW.esc(s.name||s.studentId)+'" title="Mark as handled — lowers the student\'s hand">✓ Lower hand</button>'
+      : '';
     if(liveView==='list'){
-      return '<div class="aw-live-row'+(liveSelected===s.studentId?' sel':'')+'" data-sid="'+AW.esc(s.studentId)+'">' +
+      return '<div class="aw-live-row'+(liveSelected===s.studentId?' sel':'')+(s.raisedHand?' hand':'')+'" data-sid="'+AW.esc(s.studentId)+'">' +
         '<div class="aw-live-av sm">'+AW.esc(init)+'</div>' +
         '<div style="flex:1"><b>'+AW.esc(s.name||s.studentId)+'</b>'+hand+'<div style="font-size:.75rem;color:var(--aw-ink-3)">'+AW.esc(s.studentId)+'</div></div>' +
-        '<div style="font-size:.8rem;color:var(--aw-ink-3);margin-right:12px">'+(parseInt(s.wordCount)||0)+' words</div>' +
+        lower +
+        '<div style="font-size:.8rem;color:var(--aw-ink-3);margin:0 12px">'+(parseInt(s.wordCount)||0)+' words</div>' +
         '<div class="aw-live-status"><span class="aw-dot aw-dot-'+dot+'"></span>'+s.status+'</div></div>';
     }
-    return '<div class="aw-live-cell'+(liveSelected===s.studentId?' sel':'')+'" data-sid="'+AW.esc(s.studentId)+'">' +
+    return '<div class="aw-live-cell'+(liveSelected===s.studentId?' sel':'')+(s.raisedHand?' hand':'')+'" data-sid="'+AW.esc(s.studentId)+'">' +
       '<div class="aw-live-av">'+AW.esc(init)+'</div>' +
       '<div class="aw-live-name">'+AW.esc(s.name||s.studentId)+hand+'</div>' +
-      '<div class="aw-live-status"><span class="aw-dot aw-dot-'+dot+'"></span>'+s.status+'</div></div>';
+      '<div class="aw-live-status"><span class="aw-dot aw-dot-'+dot+'"></span>'+s.status+'</div>' +
+      lower + '</div>';
   }).join('');
   var totalWords=filtered.reduce(function(a,s){return a+(parseInt(s.wordCount)||0);},0);
   document.getElementById('liveStats').innerHTML=
@@ -528,6 +537,28 @@ function renderLive(){
       var s=filtered.filter(function(x){return String(x.studentId)===String(liveSelected);})[0];
       if(s) openAnnotation(s);
     };
+  });
+  AW.els('.aw-lower-hand').forEach(function(b){
+    b.onclick=function(e){
+      e.stopPropagation();               // don't open the student's essay
+      lowerStudentHand(b.dataset.lower, b.dataset.name, b);
+    };
+  });
+}
+/* Teacher marks a raised hand as handled. Clears the flag server-side and
+   updates the view straight away rather than waiting for the next poll. */
+function lowerStudentHand(studentId, name, btn){
+  if(btn){ btn.disabled=true; btn.textContent='…'; }
+  AW.api('write.raiseHand',{ studentId:studentId, raised:false }).then(function(res){
+    if(res&&res.success){
+      AW.toast('Lowered '+(name||'student')+"'s hand",'ok');
+      liveData.forEach(function(s){ if(String(s.studentId)===String(studentId)) s.raisedHand=false; });
+      delete _seenHands[studentId];      // so a new raise notifies again
+      renderLive();
+    } else {
+      AW.toast('Could not lower the hand','err');
+      if(btn){ btn.disabled=false; btn.textContent='✓ Lower hand'; }
+    }
   });
 }
 function statRow(l,v){return '<div class="aw-stat-row"><span>'+l+'</span><b>'+v+'</b></div>';}
@@ -1115,8 +1146,15 @@ function notify(html, kind, onClick){
   card.style.cssText='background:#fff;border-left:5px solid '+(kind==='hand'?'#E0A32E':'#2E9367')+
     ';border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.22);padding:13px 16px;font-size:.88rem;'+
     'cursor:pointer;animation:awSlideIn .25s ease;display:flex;align-items:flex-start;gap:10px';
-  card.innerHTML='<div style="flex:1">'+html+'</div><button style="background:none;border:none;color:#9AA6B2;cursor:pointer;font-size:1.1rem;line-height:1;padding:0">×</button>';
-  card.querySelector('button').onclick=function(e){ e.stopPropagation(); card.remove(); };
+  card.innerHTML='<div style="flex:1">'+html+'</div><button class="aw-notif-x" style="background:none;border:none;color:#9AA6B2;cursor:pointer;font-size:1.1rem;line-height:1;padding:0">×</button>';
+  card.querySelector('.aw-notif-x').onclick=function(e){ e.stopPropagation(); card.remove(); };
+  // an inline "Lower hand" action inside the card must not also open Live
+  var lowerBtn=card.querySelector('[data-notif-lower]');
+  if(lowerBtn) lowerBtn.onclick=function(e){
+    e.stopPropagation();
+    lowerStudentHand(lowerBtn.dataset.notifLower, null, lowerBtn);
+    card.remove();
+  };
   card.onclick=function(){ card.remove(); if(onClick)onClick(); };
   stack.appendChild(card);
   setTimeout(function(){ if(card.parentNode) card.remove(); }, 12000);
@@ -1131,7 +1169,8 @@ function pollNotifications(){
       if(s.raisedHand && !_seenHands[key]){
         _seenHands[key]=true;
         if(_notifPrimed) notify('<b>✋ '+AW.esc(s.name||s.studentId)+'</b> is raising a hand'+
-          (s.topic?'<div style="font-size:.78rem;color:#667;margin-top:2px">'+AW.esc(s.topic)+'</div>':''),
+          (s.topic?'<div style="font-size:.78rem;color:#667;margin-top:2px">'+AW.esc(s.topic)+'</div>':'')+
+          '<button class="aw-lower-hand" data-notif-lower="'+AW.esc(s.studentId)+'" style="margin-top:8px">✓ Lower hand</button>',
           'hand', function(){ location.hash='live'; showLive(); AW.setActiveNav('live'); });
       }
       if(!s.raisedHand) delete _seenHands[key]; // lowered → can notify again next time
