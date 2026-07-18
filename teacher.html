@@ -216,6 +216,7 @@
 </div>
 
 <script src="aw-common.js"></script>
+<script src="aw-teacher-ai.js"></script>
 <script>
 if (window.AW && !AW.renderTodaysWord) { AW.renderTodaysWord = function(){}; }
 if (window.AW && !AW.bumpLoginCount) { AW.bumpLoginCount = function(){}; }
@@ -1139,7 +1140,7 @@ function notify(html, kind, onClick){
   var stack=document.getElementById('awNotif');
   if(!stack){
     stack=document.createElement('div'); stack.id='awNotif';
-    stack.style.cssText='position:fixed;bottom:20px;right:20px;z-index:900;display:flex;flex-direction:column;gap:10px;max-width:340px';
+    stack.style.cssText="position:fixed;bottom:84px;right:24px;z-index:860;display:flex;flex-direction:column;gap:10px;max-width:340px";
     document.body.appendChild(stack);
   }
   var card=document.createElement('div');
@@ -1194,6 +1195,26 @@ function pollNotifications(){
   });
 }
 setInterval(pollNotifications, 8000);
+// Tell the floating AI assistant what the teacher is currently looking at
+if (window.AW && AW.teacherAI) {
+  AW.teacherAI.setContextProvider(function(){
+    var bits = [];
+    var title = (document.getElementById('awPageTitle')||{}).textContent;
+    if (title) bits.push('Screen: ' + title);
+    var co = (typeof curClassObj==='function') ? curClassObj() : null;
+    if (co) bits.push('Class: ' + co.className + ' (' + co.classId + ')');
+    // if a live essay modal is open, include its author + text
+    var mb = document.getElementById('modalBg');
+    if (mb && mb.classList.contains('show')) {
+      var who = (document.getElementById('mStudent')||{}).textContent || '';
+      var topic = (document.getElementById('mTopic')||{}).textContent || '';
+      var essay = (document.getElementById('mText')||{}).innerText || '';
+      if (who) bits.push('Open essay by: ' + who + ' ' + topic);
+      if (essay.trim()) bits.push('Essay text (first 1500 chars):\n' + essay.trim().slice(0,1500));
+    }
+    return bits.join('\n');
+  });
+}
 setTimeout(pollNotifications, 1500);
 
 /*═══════════ FEEDBACK QUERIES (student questions about AI feedback) ═══════════*/
