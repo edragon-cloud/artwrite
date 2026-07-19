@@ -153,7 +153,9 @@
       '.aw-tai-keyrow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--aw-border-2)}',
       '.aw-tai-ctx{font-size:.72rem;color:var(--aw-ink-3);padding:6px 14px;background:#EAF2FB;border-bottom:1px solid #D3E4F7;display:flex;align-items:center;gap:6px}',
       '.aw-tai-ctx input{margin:0}',
-      '.aw-tai-icon-btn{background:none;border:none;color:#fff;cursor:pointer;font-size:1.05rem;line-height:1;padding:2px 4px}'
+      '.aw-tai-icon-btn{background:none;border:none;color:#fff;cursor:pointer;font-size:1.05rem;line-height:1;padding:2px 4px}',
+      '.aw-tai-clear-btn{background:rgba(255,255,255,.18);border:none;color:#fff;cursor:pointer;font-size:.76rem;font-weight:600;line-height:1;padding:5px 10px;border-radius:14px}',
+      '.aw-tai-clear-btn:hover{background:rgba(255,255,255,.32)}'
     ].join('\n');
     document.head.appendChild(s);
   }
@@ -178,8 +180,8 @@
       '<div class="aw-tai-head">' +
         '<b>🤖 AI Assistant</b>' +
         '<div style="display:flex;gap:4px">' +
-          '<button class="aw-tai-icon-btn" id="awTaiKeysBtn" title="API keys">🔑</button>' +
-          '<button class="aw-tai-icon-btn" id="awTaiClear" title="Clear chat">🗑</button>' +
+          '<button class="aw-tai-clear-btn" id="awTaiClear" title="Clear chat history (keeps keys)">Clear chat</button>' +
+          '<button class="aw-tai-icon-btn" id="awTaiKeysBtn" title="Manage API keys">🔑</button>' +
           '<button class="aw-tai-icon-btn" id="awTaiClose" title="Close">×</button>' +
         '</div>' +
       '</div>' +
@@ -194,7 +196,7 @@
     msgsEl = document.getElementById('awTaiMsgs');
     inputEl = document.getElementById('awTaiInput');
     document.getElementById('awTaiClose').onclick = function () { panel.classList.remove('show'); document.getElementById('awTaiFab').style.display = ''; };
-    document.getElementById('awTaiClear').onclick = function () { if (confirm('Xoá toàn bộ lịch sử chat?')) { hist = []; setHist(hist); render(); } };
+    document.getElementById('awTaiClear').onclick = function () { if (confirm('Xoá lịch sử chat? (API key của bạn vẫn được giữ nguyên)')) { hist = []; setHist(hist); render(); } };
     document.getElementById('awTaiKeysBtn').onclick = function () { view = (view === 'keys' ? 'chat' : 'keys'); render(); };
     document.getElementById('awTaiSend').onclick = send;
     inputEl.onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
@@ -245,7 +247,7 @@
           var p = PROVIDERS[id], has = !!keys[id];
           return '<div class="aw-tai-keyrow"><span class="aw-tai-dot" style="background:' + (has ? p.color : '#ccc') + '"></span>' +
             '<b style="flex:1">' + p.label + '</b>' +
-            (has ? '<span style="color:var(--aw-writing);font-size:.8rem">✓ đã lưu</span> <button class="aw-tai-delkey" data-p="' + id + '" style="background:none;border:none;color:var(--aw-danger);cursor:pointer;font-size:.8rem">Xoá</button>'
+            (has ? '<span style="color:var(--aw-writing);font-size:.8rem">✓ đã lưu</span> <button class="aw-tai-delkey" data-p="' + id + '" title="Xoá key này" style="background:none;border:none;color:var(--aw-danger);cursor:pointer;font-size:1rem">🗑</button>'
                  : '<span style="color:var(--aw-ink-3);font-size:.8rem">chưa có</span>') +
           '</div>';
         }).join('') +
