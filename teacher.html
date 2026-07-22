@@ -11,6 +11,7 @@
   @media(max-width:900px){.aw-live-wrap{grid-template-columns:1fr}}
   .aw-live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
   @keyframes awSlideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+  .aw-res-date{font-size:.66rem;color:var(--aw-ink-3);line-height:1.2;margin-top:1px;white-space:nowrap}
   .aw-ai-toggle{display:inline-flex;align-items:center;gap:7px;border:1px solid #E0A32E;background:#FFF8EC;color:#8A6410;
     border-radius:18px;padding:6px 14px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--aw-font-body)}
   .aw-ai-toggle.on{border-color:#2E9367;background:#EAF7F0;color:#1E7E42}
@@ -957,7 +958,16 @@ function timeCells(w,grpClass){
   if(!w) return '<td class="'+cl+'">—</td><td class="'+cl+'">—</td><td class="'+cl+'">—</td>';
   function t(x){ if(!x)return '—'; var d=new Date(x); return isNaN(d)?x:(d.getHours()+':'+String(d.getMinutes()).padStart(2,'0')); }
   function dur(s){ if(!s)return '—'; s=parseInt(s,10); if(isNaN(s))return '—'; var m=Math.floor(s/60); return m>=60?(Math.floor(m/60)+'h'+(m%60)+'m'):(m+'m'); }
-  return '<td class="'+cl+'">'+t(w.startTime)+'</td><td class="'+cl+'">'+t(w.finishTime)+'</td><td class="'+cl+'">'+dur(w.duration)+'</td>';
+  // Date sits under the start time rather than in its own column — the table
+  // is already wide, and the date belongs with the time it refers to.
+  function dstr(x){
+    if(!x) return '';
+    var d=new Date(x); if(isNaN(d)) return '';
+    return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+String(d.getFullYear()).slice(2);
+  }
+  var day = dstr(w.timestamp || w.startTime);
+  var dayLine = day ? '<div class="aw-res-date">'+day+'</div>' : '';
+  return '<td class="'+cl+'">'+t(w.startTime)+dayLine+'</td><td class="'+cl+'">'+t(w.finishTime)+'</td><td class="'+cl+'">'+dur(w.duration)+'</td>';
 }
 function renderResults(){
   var box=document.getElementById('resultsBox'); if(!box)return;
@@ -1109,7 +1119,13 @@ window.viewEssays=function(gkey, writeIdx){
       var x=item.x, i=item.i;
       var fb=null; try{ fb=x.feedback?JSON.parse(x.feedback):null; }catch(e){}
       var s=(fb&&fb.scores)||{tr:x.tr,cc:x.cc,lr:x.lr,gra:x.gra};
-      var out='<div class="rv-block"><h4>Attempt '+(i+1)+' — Band '+(x.overall||'—')+'</h4>';
+      var subT='';
+      var _ts=x.timestamp||x.startTime;
+      if(_ts){ var _d=new Date(_ts); if(!isNaN(_d)){
+        subT='<div style="font-size:.76rem;color:var(--aw-ink-3);margin:-4px 0 8px">🗓 Nộp lúc: '+
+          String(_d.getDate()).padStart(2,'0')+'/'+String(_d.getMonth()+1).padStart(2,'0')+'/'+_d.getFullYear()+
+          '  '+_d.getHours()+':'+String(_d.getMinutes()).padStart(2,'0')+'</div>'; } }
+      var out='<div class="rv-block"><h4>Attempt '+(i+1)+' — Band '+(x.overall||'—')+'</h4>'+subT;
       // score bars
       out+='<div style="display:flex;align-items:center;gap:14px;margin:8px 0 14px">'+
         '<div style="width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#0A6EBD,#0A93BD);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;flex:0 0 auto"><b style="font-size:1.3rem">'+(x.overall||'—')+'</b><span style="font-size:.5rem">BAND</span></div>'+
