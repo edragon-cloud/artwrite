@@ -542,24 +542,37 @@ function lockEditor(msg){
 function renderFeedback(r){
   var s=r.scores||{};
   // Annotate essay on left (error marks inline) — always
-  if(r.corrected_text || (r.gra_errors && r.gra_errors.length)){
-    var essayText = editor.innerText;
-    var annotated = essayText;
+  if(r.corrected_text || (r.gra_errors && r.gra_errors.length) || (r.lr_issues && r.lr_issues.length)){
+    // Keep the student's original paragraph structure. innerText flattens
+    // paragraphs into one block, so start from the real HTML and only
+    // wrap error phrases inside it (text nodes only, never inside tags).
+    var annotated = editor.innerHTML;
+    function markPhrase(html, phrase, wrapOpen, wrapClose){
+      if(!phrase) return html;
+      var esc = phrase.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      // only match outside of tags: split on tags, replace within text chunks
+      return html.replace(/(<[^>]+>)|([^<]+)/g, function(m, tag, textChunk){
+        if(tag) return tag;
+        return textChunk.replace(new RegExp(esc,'g'), wrapOpen + AW.esc(phrase) + wrapClose);
+      });
+    }
     if(r.gra_errors) r.gra_errors.slice(0,10).forEach(function(e){
       if(e.wrong && e.correct){
-        var re=new RegExp(e.wrong.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g');
-        annotated=annotated.replace(re,'<span class="err-mark">'+AW.esc(e.wrong)+'</span><span class="fix-mark"> →'+AW.esc(e.correct)+'</span>');
+        annotated = markPhrase(annotated, e.wrong,
+          '<span class="err-mark">', '</span><span class="fix-mark"> →'+AW.esc(e.correct)+'</span>');
       }
     });
     if(r.lr_issues) r.lr_issues.slice(0,6).forEach(function(e){
       if(e.original && e.better){
-        var re=new RegExp(e.original.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g');
-        annotated=annotated.replace(re,'<span style="text-decoration:underline;text-decoration-color:var(--aw-accent);text-decoration-style:wavy">'+AW.esc(e.original)+'<span style="color:var(--aw-accent);font-size:.8em"> (→'+AW.esc(e.better)+')</span></span>');
+        annotated = markPhrase(annotated, e.original,
+          '<span style="text-decoration:underline;text-decoration-color:var(--aw-accent);text-decoration-style:wavy">',
+          '<span style="color:var(--aw-accent);font-size:.8em"> (→'+AW.esc(e.better)+')</span></span>');
       }
     });
     editor.innerHTML=annotated;
     editor.setAttribute('contenteditable','false');
     editor.style.background='#FAFBFC';
+    editor.style.whiteSpace='pre-wrap';   // keep line breaks even if the essay was plain text
   }
   var html =
     '<div class="aw-band"><div class="aw-band-circ"><div class="aw-band-num">'+(r.overall||'—')+'</div><div class="aw-band-lbl">BAND</div></div>' +
@@ -576,10 +589,13 @@ function renderFeedback(r){
   if(r.overall_feedback_vi){
     html += '<div class="aw-fb-block"><h4>Overall Assessment</h4><div class="aw-fb-item">'+AW.esc(r.overall_feedback_vi)+'</div></div>';
   }
-  // Task Response detail
+  // Task Response detail — show bold paragraph label; quote only a single flagged sentence
   if(r.tr_comments && r.tr_comments.length){
-    html += '<div class="aw-fb-block"><h4>Task Response</h4>'+r.tr_comments.slice(0,4).map(function(c){
-      return '<div class="aw-fb-item">'+(c.original_idea?'<i>"'+AW.esc(c.original_idea)+'"</i><br>':'')+AW.esc(c.assessment_vi||'')+(c.suggestion_en?'<br><span style="color:var(--aw-primary);font-size:.85rem">→ '+AW.esc(c.suggestion_en)+'</span>':'')+'</div>';
+    html += '<div class="aw-fb-block"><h4>Task Response</h4>'+r.tr_comments.slice(0,6).map(function(c){
+      var label = c.paragraph_role ? '<b style="color:var(--aw-primary)">'+AW.esc(c.paragraph_role)+'</b><br>' : '';
+      var quote = c.quote ? '<i style="color:var(--aw-ink-2)">"'+AW.esc(c.quote)+'"</i><br>' : '';
+      return '<div class="aw-fb-item">'+label+quote+AW.esc(c.assessment_vi||'')+
+        (c.suggestion_en?'<br><span style="color:var(--aw-primary);font-size:.85rem">→ '+AW.esc(c.suggestion_en)+'</span>':'')+'</div>';
     }).join('')+'</div>';
   }
   // Coherence

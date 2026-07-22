@@ -55,7 +55,11 @@
       '- IF a body paragraph has fewer than 3 sentences OR discusses two completely unrelated main ideas THEN flag as "Paragraphing Error" and advise ONE central idea per paragraph with sufficient development.\n'+
       '[FEEDBACK FORMAT]\n'+
       'When any rule triggers, quote the exact sentence containing the error, use an arrow "=>", and give a precise, constructive correction based ONLY on the rules above. Keep the tone professional, direct and academic. Apply caps to the numeric scores accordingly — caps set the MAXIMUM; genuine weaknesses may score lower.\n\n'+
-      'Return ONLY a JSON object with fields: scores(TR,CC,LR,GRA), overall, band_description, overall_feedback_vi, tr_comments(array of {original_idea,assessment_vi,suggestion_en}), gra_errors(array of {wrong,correct,explanation_vi}), lr_issues(array of {original,better,explanation_vi,alternatives}), cc_feedback({assessment_vi,issues,suggestions}), corrected_text, repeated_errors_vi.';
+      'Return ONLY a JSON object with fields: scores(TR,CC,LR,GRA), overall, band_description, overall_feedback_vi, tr_comments(array of {paragraph_role,assessment_vi,suggestion_en,quote}), gra_errors(array of {wrong,correct,explanation_vi}), lr_issues(array of {original,better,explanation_vi,alternatives}), cc_feedback({assessment_vi,issues,suggestions}), corrected_text, repeated_errors_vi.\n'+
+      'TOKEN RULES for tr_comments — follow strictly to keep output short:\n'+
+      '- Do NOT quote whole paragraphs. For each comment set "paragraph_role" to the paragraph label ONLY: "Opening", "Body 1", "Body 2", "Body 3"... , or "Conclusion". Standard mapping: a 4-paragraph essay = Opening, Body 1, Body 2, Conclusion; a 5-paragraph essay = Opening, Body 1, Body 2, Body 3, Conclusion.\n'+
+      '- Leave "quote" EMPTY unless you must point to ONE specific problematic sentence — then put ONLY that single sentence in "quote" (never the whole paragraph).\n'+
+      '- "assessment_vi" is your comment on that paragraph. Keep it concise.';
     // Strip HTML tags from question (may contain <b>,<i> from rich text editor)
     var tmp=document.createElement('div'); tmp.innerHTML=question;
     var cleanQ=(tmp.textContent||tmp.innerText||question).replace(/\s+/g,' ').trim();
