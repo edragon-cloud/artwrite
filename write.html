@@ -695,6 +695,13 @@ function renderFeedback(r){
       return '<div class="aw-fb-item"><span class="err-mark">'+AW.esc(e.original)+'</span> → <span class="fix-mark">'+AW.esc(e.better)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(e.explanation_vi)+'</span>':'')+'</div>';
     }).join('')+'</div>';
   }
+  // What is still missing for the next band up
+  if((r.next_band_advice||[]).length){
+    html+='<div class="aw-fb-block"><h4 style="color:var(--aw-writing)">🚀 Để lên band cao hơn</h4>'+
+      r.next_band_advice.slice(0,4).map(function(a){
+        return '<div class="aw-fb-item" style="border-left:3px solid var(--aw-writing);padding-left:10px">'+AW.esc(a)+'</div>';
+      }).join('')+'</div>';
+  }
   // Vocabulary Profile (CEFR) — students only see it in an AI class; the
   // teacher can still view it for every essay from the Results screen.
   if (AW_AI_ON && window.AW && AW.analyseVocabulary && lastVocabProfile) {
