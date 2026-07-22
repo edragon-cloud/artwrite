@@ -877,6 +877,14 @@ document.getElementById('saveFb').onclick=function(){
 
 /*═══════════ RESULTS ═══════════*/
 var resultsData=[], resultsSort={key:'name',dir:1};
+/* Rows are filtered and sorted before rendering, so a row's position is NOT a
+   stable identity — using it to look up resultsData opened (and saved to) the
+   wrong student. Every row carries this key instead. */
+function resKey(g){ return String(g.studentId)+'||'+String(g.topicId||g.topic||''); }
+function findResult(key){
+  for (var i=0;i<resultsData.length;i++){ if(resKey(resultsData[i])===key) return resultsData[i]; }
+  return null;
+}
 function showResults(){
   document.getElementById('awPageTitle').textContent='Results';
   content.innerHTML=
@@ -937,11 +945,11 @@ function loadResults(mode){
     renderResults();
   });
 }
-function scoreCell(w,grpClass,gi,writeIdx){
+function scoreCell(w,grpClass,gkey,writeIdx){
   if(!w) return '<td class="'+(grpClass||'')+'">—</td>';
   var o=w.overall||w.teacher||'—';
   var pop='TR '+(w.tr||'—')+' · CC '+(w.cc||'—')+' · LR '+(w.lr||'—')+' · GRA '+(w.gra||'—');
-  var clickAttr = (gi!=null && writeIdx!=null) ? ' data-open-gi="'+gi+'" data-open-wi="'+writeIdx+'"' : '';
+  var clickAttr = (gkey!=null && writeIdx!=null) ? ' data-open-key="'+AW.esc(gkey)+'" data-open-wi="'+writeIdx+'"' : '';
   return '<td class="'+(grpClass||'')+'"><span class="aw-res-overall"'+clickAttr+'>'+o+'<small>/9</small><span class="aw-res-pop">'+pop+'</span></span></td>';
 }
 function timeCells(w,grpClass){
@@ -980,7 +988,8 @@ function renderResults(){
   writeLabels.forEach(function(l){ top+='<th class="'+l[1]+'">Start</th><th class="'+l[1]+'">Finish</th><th class="'+l[1]+'">Dur</th><th class="'+l[1]+'">Result</th>'; });
   top+='</tr>';
 
-  var body=rows.map(function(g,gi){
+  var body=rows.map(function(g){
+    var gkey=resKey(g);
     var w=g.writes||[];
     var best=null,bestI=-1;
     w.forEach(function(x,xi){var v=parseFloat(x.overall);if(!isNaN(v)&&(best===null||v>parseFloat(best.overall))){best=x;bestI=xi;}});
@@ -1004,7 +1013,7 @@ function renderResults(){
       '</div>'+
       '<div style="display:flex;gap:5px;align-items:center">'+
         '<input class="ms-note" data-f="note" placeholder="Private note (GV only)…" value="'+AW.esc(ts.note||'')+'" style="flex:1;min-width:0" title="Only you see this">'+
-        '<button class="ms-save aw-btn aw-btn-primary" style="padding:5px 12px;font-size:.72rem;flex:0 0 auto" data-gi="'+gi+'">Save</button>'+
+        '<button class="ms-save aw-btn aw-btn-primary" style="padding:5px 12px;font-size:.72rem;flex:0 0 auto" data-key="'+AW.esc(gkey)+'">Save</button>'+
       '</div>'+
       (ts.gradedAt?'<div style="font-size:.65rem;color:var(--aw-writing);margin-top:3px">✓ Graded</div>':'')+
     '</div>';
@@ -1016,26 +1025,26 @@ function renderResults(){
     picks.forEach(function(p,pi){
       // map pick index to actual write index (best uses bestI)
       var realIdx = (pi<3) ? pi : bestI;
-      tds+=timeCells(p,groups[pi])+scoreCell(p,groups[pi],gi,realIdx);
+      tds+=timeCells(p,groups[pi])+scoreCell(p,groups[pi],gkey,realIdx);
     });
     tds+='<td class="grp-best">'+attemptsCell+'</td>';
     // private note column (teacher-only)
     tds+='<td style="background:#EAF6EF;min-width:180px;vertical-align:top">'+
       '<div style="display:flex;flex-direction:column;gap:5px;align-items:stretch">'+
-        '<textarea class="pv-note" data-gi="'+gi+'" placeholder="Nhận xét gửi cho sinh viên (SV sẽ thấy)…" '+
+        '<textarea class="pv-note" data-key="'+AW.esc(gkey)+'" placeholder="Nhận xét gửi cho sinh viên (SV sẽ thấy)…" '+
         'style="width:100%;min-height:56px;border:1px solid var(--aw-border);border-radius:6px;padding:6px;font-size:.78rem;font-family:var(--aw-font-body);resize:vertical;box-sizing:border-box">'+AW.esc(ts.privateNote||'')+'</textarea>'+
-        '<button class="pv-save aw-btn aw-btn-primary" data-gi="'+gi+'" style="padding:5px 10px;font-size:.72rem;width:100%">Save note</button>'+
+        '<button class="pv-save aw-btn aw-btn-primary" data-key="'+AW.esc(gkey)+'" style="padding:5px 10px;font-size:.72rem;width:100%">Save note</button>'+
       '</div></td>';
-    return '<tr data-gi="'+gi+'" data-besti="'+bestI+'">'+tds+'</tr>';
+    return '<tr data-key="'+AW.esc(gkey)+'" data-besti="'+bestI+'">'+tds+'</tr>';
   }).join('');
 
   box.innerHTML='<p style="font-size:.82rem;color:var(--aw-ink-3);margin:0 0 10px">💡 Click any <b>Result</b> score to view that attempt\'s full essay and feedback.</p>'+
     '<div class="aw-res-wrap" style="overflow-x:auto"><table class="aw-res-table"><thead>'+top+'</thead><tbody>'+body+'</tbody></table></div>';
   // click a Result score to view that attempt's essay + feedback
-  AW.els('[data-open-gi]').forEach(function(cell){
+  AW.els('[data-open-key]').forEach(function(cell){
     cell.style.cursor='pointer';
     cell.title='Click to view this attempt';
-    cell.onclick=function(){ viewEssays(+cell.dataset.openGi, +cell.dataset.openWi); };
+    cell.onclick=function(){ viewEssays(cell.dataset.openKey, +cell.dataset.openWi); };
   });
   // manual score save + auto-average overall (IELTS rounding)
   AW.els('.grp-best').forEach(function(cell){
@@ -1046,13 +1055,13 @@ function renderResults(){
   });
   AW.els('.ms-save').forEach(function(btn){
     btn.onclick=function(){
-      var gi=+btn.dataset.gi, g=resultsData[gi]; if(!g)return;
+      var key=btn.dataset.key, g=findResult(key); if(!g)return;
       var cell=btn.closest('.grp-best');
       var payload={ studentId:g.studentId, topicId:g.topicId,
         mode:document.querySelector('.aw-tab.active').dataset.mode };
       cell.querySelectorAll('[data-f]').forEach(function(inp){ payload[inp.dataset.f]=inp.value.trim(); });
       // preserve existing private note
-      var pv=document.querySelector('.pv-note[data-gi="'+gi+'"]');
+      var pv=document.querySelector('.pv-note[data-key="'+key+'"]');
       payload.privateNote = pv?pv.value.trim():((g.teacherScore&&g.teacherScore.privateNote)||'');
       btn.disabled=true; var o=btn.textContent; btn.textContent='Saving…';
       AW.api('teacher.saveManualScore',payload).then(function(res){
@@ -1064,9 +1073,9 @@ function renderResults(){
   // private note save (teacher-only)
   AW.els('.pv-save').forEach(function(btn){
     btn.onclick=function(){
-      var gi=+btn.dataset.gi, g=resultsData[gi]; if(!g)return;
+      var key=btn.dataset.key, g=findResult(key); if(!g)return;
       var ts=g.teacherScore||{};
-      var pv=document.querySelector('.pv-note[data-gi="'+gi+'"]');
+      var pv=document.querySelector('.pv-note[data-key="'+key+'"]');
       var payload={ studentId:g.studentId, topicId:g.topicId,
         mode:document.querySelector('.aw-tab.active').dataset.mode,
         tr:ts.tr||'', cc:ts.cc||'', lr:ts.lr||'', gra:ts.gra||'', overall:ts.overall||'', note:ts.note||'',
@@ -1080,8 +1089,8 @@ function renderResults(){
   });
 }
 // view essays + feedback. writeIdx: specific attempt index, or -1/undefined = all
-window.viewEssays=function(gi, writeIdx){
-  var g=resultsData[gi]; if(!g)return;
+window.viewEssays=function(gkey, writeIdx){
+  var g=findResult(gkey); if(!g){ AW.toast('Không tìm thấy bài viết này.','err'); return; }
   var w=g.writes||[];
   var showList = (writeIdx==null || writeIdx<0) ? w.map(function(x,i){return {x:x,i:i};})
                                                 : (w[writeIdx]?[{x:w[writeIdx],i:writeIdx}]:[]);
@@ -1089,7 +1098,7 @@ window.viewEssays=function(gi, writeIdx){
     return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.85rem"><span>'+name+'</span><b>'+(val||'—')+'</b></div><div style="height:6px;background:#E5E9EE;border-radius:4px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#0A6EBD,#0A93BD);border-radius:4px"></div></div></div>';}
   var header='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'+
     '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.25rem">'+AW.esc(g.name||g.studentId)+' — '+AW.esc(g.topic||'')+'</h2>'+
-    '<div><button class="aw-btn aw-btn-accent" style="padding:6px 14px;margin-right:6px" onclick="exportTeacherDoc('+gi+')">📄 Save to Google Doc</button>'+
+    '<div><button class="aw-btn aw-btn-accent" style="padding:6px 14px;margin-right:6px" onclick="exportTeacherDoc(\''+gkey.replace(/'/g,"\\'")+'\')">📄 Save to Google Doc</button>'+
     '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px;margin-right:6px" onclick="printTeacherFeedback()">⤓ Print/PDF</button>'+
     '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="closeEssayModal()">Close</button></div></div>';
   var body;
@@ -1137,8 +1146,8 @@ window.printTeacherFeedback=function(){
   w.document.write('<html><head><title>ArticuWrite Feedback</title><style>body{font-family:Inter,system-ui,sans-serif;max-width:720px;margin:30px auto;padding:0 20px;color:#10222E}h4{color:#0A6EBD;margin:16px 0 6px;font-size:.9rem}.rv-block{margin-top:14px;padding-top:14px;border-top:1px solid #E5E9EE}p{line-height:1.5;font-size:.9rem}</style></head><body><h1 style="color:#0A6EBD">ArticuWrite — Feedback</h1>'+el.innerHTML+'<p style="margin-top:30px;font-size:.75rem;color:#889">Generated by ArticuWrite · '+new Date().toLocaleString()+'</p></body></html>');
   w.document.close(); setTimeout(function(){w.print();},400);
 };
-window.exportTeacherDoc=function(gi){
-  var g=resultsData[gi]; if(!g||!g.writes.length)return;
+window.exportTeacherDoc=function(gkey){
+  var g=findResult(gkey); if(!g||!g.writes.length){ AW.toast('Không tìm thấy bài viết này.','err'); return; }
   var w0=g.writes[0];
   AW.toast('Creating Google Doc…');
   AW.api('write.exportDoc',{studentId:g.studentId,topicId:g.topicId,mode:document.querySelector('.aw-tab.active').dataset.mode}).then(function(res){
