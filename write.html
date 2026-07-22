@@ -434,6 +434,11 @@ document.getElementById('gradeBtn').onclick = function(){
   if (fp && fp.value.trim()) { PROMPT = fp.value.trim(); TOPIC = fp.value.trim().slice(0,60); }
 
   var btn=this; btn.disabled=true; var orig=btn.textContent;
+  if (typeof AW.grade !== 'function') {
+    AW.toast('Lỗi tải bộ chấm (aw-grader.js). Hãy tải lại trang; nếu vẫn lỗi, báo giáo viên.', 'err', 6000);
+    btn.disabled=false; btn.textContent=orig;
+    return;
+  }
   btn.innerHTML='<span class="aw-spin"></span> Grading…';
   showGradingOverlay();
 
