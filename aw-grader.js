@@ -74,6 +74,10 @@
         '\n\nYou MUST follow these teacher rules. Do NOT flag, mark, or deduct points for anything the teacher has explicitly allowed or told you to ignore. Only report errors that remain genuine problems given these rules. This keeps feedback appropriate for the class context and avoids overwhelming the student with irrelevant corrections.';
     }
     var prompt=systemInstruction+'\n\n'+userMessage;
+    // ~30-token CEFR vocabulary summary (measured client-side) for reference
+    if (payload.vocabSummary && payload.vocabSummary.trim()) {
+      prompt += '\n\n=== VOCABULARY DATA (for Lexical Resource reference) ===\n' + payload.vocabSummary.trim();
+    }
 
     // Grading must be as repeatable as possible, so decode near-greedily:
     // temperature alone only sharpens the distribution — topK/topP are what

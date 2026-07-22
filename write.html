@@ -45,6 +45,18 @@
   .aw-bar-fill{height:100%;background:linear-gradient(90deg,var(--aw-primary),#0A93BD);border-radius:4px;width:0;transition:width .5s ease}
   .aw-fb-block{margin-top:14px;padding-top:14px;border-top:1px solid var(--aw-border-2)}
   .aw-fb-block h4{margin:0 0 8px;font-size:.82rem;color:var(--aw-primary);text-transform:uppercase;letter-spacing:.04em}
+  .aw-voc-stack{display:flex;height:12px;border-radius:6px;overflow:hidden;margin-bottom:14px;background:var(--aw-surface-2)}
+  .aw-voc-stack>div{transition:width .5s ease}
+  .aw-voc-chart{display:flex;gap:6px;align-items:flex-end;height:96px;margin-bottom:12px}
+  .aw-voc-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+  .aw-voc-colwrap{flex:1;width:100%;display:flex;align-items:flex-end}
+  .aw-voc-colbar{width:100%;border-radius:5px 5px 0 0;min-height:2px;transition:height .6s ease}
+  .aw-voc-lv{font-size:.72rem;font-weight:700}
+  .aw-voc-pct{font-size:.66rem;color:var(--aw-ink-3)}
+  .aw-voc-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+  .aw-voc-kpi{background:var(--aw-surface-2);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column}
+  .aw-voc-kpi b{font-size:1.15rem;font-family:var(--aw-font-display)}
+  .aw-voc-kpi span{font-size:.7rem;color:var(--aw-ink-3)}
   .aw-fb-item{font-size:.86rem;line-height:1.5;color:var(--aw-ink-2);margin-bottom:8px;padding-left:10px;border-left:2px solid var(--aw-border)}
   .aw-fb-item b{color:var(--aw-ink)}
   .err-mark{color:var(--aw-danger);text-decoration:line-through}
@@ -100,6 +112,7 @@
 <div id="app"></div>
 
 <script src="aw-common.js"></script>
+<script src="aw-cefr.js"></script>
 <script src="aw-grader.js"></script>
 <script>
 // Safety shim: if aw-common.js is an older cached copy without groqKey,
@@ -442,7 +455,17 @@ document.getElementById('gradeBtn').onclick = function(){
   btn.innerHTML='<span class="aw-spin"></span> Grading…';
   showGradingOverlay();
 
-  AW.grade({ writing:text, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES }, key)
+  // Measure vocabulary against the CEFR list (client-side, free). Show it in
+  // the profile widget, and hand a short summary to the grader for reference.
+  var vocabSummary = '';
+  try {
+    if (window.AW && AW.analyseVocabulary) {
+      lastVocabProfile = AW.analyseVocabulary(text);
+      vocabSummary = AW.cefrSummary(lastVocabProfile);
+    }
+  } catch(e) { lastVocabProfile = null; }
+
+  AW.grade({ writing:text, question:PROMPT, attempt:attempt, aiNotes:AI_NOTES, vocabSummary:vocabSummary }, key)
     .then(function(result){
       lastResult=result;
       renderFeedback(result);
@@ -615,13 +638,58 @@ function renderFeedback(r){
       return '<div class="aw-fb-item"><span class="err-mark">'+AW.esc(e.original)+'</span> → <span class="fix-mark">'+AW.esc(e.better)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(e.explanation_vi)+'</span>':'')+'</div>';
     }).join('')+'</div>';
   }
+  // Vocabulary Profile (CEFR) — measured client-side, free of tokens
+  if (window.AW && AW.analyseVocabulary && lastVocabProfile) {
+    html += renderVocabProfile(lastVocabProfile);
+  }
   document.getElementById('sideBody').innerHTML=html;
-  setTimeout(function(){AW.els('.aw-bar-fill').forEach(function(b){b.style.width=b.dataset.w;});},50);
+  setTimeout(function(){
+    AW.els('.aw-bar-fill').forEach(function(b){b.style.width=b.dataset.w;});
+    // grow vocab bars from zero for a small reveal
+    AW.els('.aw-voc-colbar').forEach(function(b){var h=b.dataset.h;b.style.height='0%';requestAnimationFrame(function(){b.style.height=h;});});
+  },50);
 }
 function crit(name,val){
   var pct=val?Math.min(100,(parseFloat(val)/9)*100):0;
   return '<div class="aw-crit"><div class="aw-crit-top"><span class="aw-crit-name">'+name+'</span><span class="aw-crit-val">'+(val||'—')+'</span></div>'+
     '<div class="aw-bar"><div class="aw-bar-fill" data-w="'+pct+'%"></div></div></div>';
+}
+
+/*──────── Vocabulary Profile diagram (CEFR, client-side) ────────*/
+var lastVocabProfile = null;
+var CEFR_COLORS = { A1:'#9AA6B2', A2:'#6FB1E0', B1:'#3E8FD0', B2:'#0A6EBD', C1:'#7A5AF0', C2:'#4C36B8' };
+function renderVocabProfile(p){
+  var levels = ['A1','A2','B1','B2','C1','C2'];
+  // horizontal proportion bar
+  var segs = levels.map(function(lv){
+    var w = p.pctByLevel[lv];
+    if (w <= 0) return '';
+    return '<div title="'+lv+': '+w+'%" style="width:'+w+'%;background:'+CEFR_COLORS[lv]+'"></div>';
+  }).join('');
+  // vertical bars with labels
+  var maxPct = Math.max.apply(null, levels.map(function(lv){return p.pctByLevel[lv];})) || 1;
+  var bars = levels.map(function(lv){
+    var w = p.pctByLevel[lv];
+    var h = Math.round(w / maxPct * 100);
+    return '<div class="aw-voc-col">'+
+      '<div class="aw-voc-colwrap"><div class="aw-voc-colbar" style="height:'+h+'%;background:'+CEFR_COLORS[lv]+'" data-h="'+h+'%"></div></div>'+
+      '<div class="aw-voc-lv" style="color:'+CEFR_COLORS[lv]+'">'+lv+'</div>'+
+      '<div class="aw-voc-pct">'+w+'%</div></div>';
+  }).join('');
+
+  return '<div class="aw-fb-block aw-voc">'+
+    '<h4>📊 Vocabulary Profile</h4>'+
+    '<p style="font-size:.78rem;color:var(--aw-ink-3);margin:0 0 10px">Từ vựng của bài được đối chiếu với thang CEFR (A1 dễ → C2 khó). Tính ngay trên máy, không tốn token.</p>'+
+    '<div class="aw-voc-stack">'+segs+'</div>'+
+    '<div class="aw-voc-chart">'+bars+'</div>'+
+    '<div class="aw-voc-kpis">'+
+      '<div class="aw-voc-kpi"><b style="color:#4C36B8">'+p.pctAdvanced+'%</b><span>C1+ (nâng cao)</span></div>'+
+      '<div class="aw-voc-kpi"><b style="color:#0A6EBD">'+p.pctUpperMid+'%</b><span>B2 trở lên</span></div>'+
+      '<div class="aw-voc-kpi"><b>'+p.diversity+'%</b><span>Độ đa dạng</span></div>'+
+      '<div class="aw-voc-kpi"><b>'+p.uniqueLemmas+'</b><span>Từ gốc khác nhau</span></div>'+
+    '</div>'+
+    '<p style="font-size:.72rem;color:var(--aw-ink-3);margin:8px 0 0">'+p.listed+'/'+p.totalWords+' từ có trong từ điển CEFR. Từ ngoài danh sách (tên riêng, từ hiếm, sai chính tả) không được xếp cấp.</p>'+
+  '</div>';
 }
 
 /*──────── Gemini grading (adapted from original ArticuWrite) ────────*/

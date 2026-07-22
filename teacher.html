@@ -216,6 +216,7 @@
 </div>
 
 <script src="aw-common.js"></script>
+<script src="aw-cefr.js"></script>
 <script src="aw-teacher-ai.js"></script>
 <script>
 if (window.AW && !AW.renderTodaysWord) { AW.renderTodaysWord = function(){}; }
@@ -391,6 +392,29 @@ function loadRoster(){
 /*═══════════ LIVE OBSERVATION ═══════════*/
 /* IELTS band rounding: .25–.74 → .5, otherwise to the nearest whole band.
    Shared by the Results table and the Live Observation scoring panel. */
+/* Compact CEFR vocabulary profile for the teacher essay modal. */
+var AW_CEFR_COLORS = { A1:'#9AA6B2', A2:'#6FB1E0', B1:'#3E8FD0', B2:'#0A6EBD', C1:'#7A5AF0', C2:'#4C36B8' };
+function renderTeacherVocab(p){
+  if(!p || !p.totalWords) return '';
+  var levels=['A1','A2','B1','B2','C1','C2'];
+  var segs=levels.map(function(lv){
+    var w=p.pctByLevel[lv]; if(w<=0) return '';
+    return '<div title="'+lv+': '+w+'%" style="width:'+w+'%;background:'+AW_CEFR_COLORS[lv]+'"></div>';
+  }).join('');
+  var legend=levels.map(function(lv){
+    return '<span style="font-size:.7rem;color:'+AW_CEFR_COLORS[lv]+';font-weight:700;margin-right:10px">'+lv+' '+p.pctByLevel[lv]+'%</span>';
+  }).join('');
+  return '<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:12px 0 6px">📊 Vocabulary Profile (CEFR)</h4>'+
+    '<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin-bottom:8px;background:var(--aw-surface-2)">'+segs+'</div>'+
+    '<div style="margin-bottom:8px">'+legend+'</div>'+
+    '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:.82rem;margin-bottom:10px">'+
+      '<span><b style="color:#4C36B8">'+p.pctAdvanced+'%</b> C1+ (nâng cao)</span>'+
+      '<span><b style="color:#0A6EBD">'+p.pctUpperMid+'%</b> B2+</span>'+
+      '<span><b>'+p.diversity+'%</b> đa dạng</span>'+
+      '<span><b>'+p.uniqueLemmas+'</b> từ gốc</span>'+
+    '</div>';
+}
+
 function awIeltsRound(avg){
   var whole=Math.floor(avg), frac=avg-whole;
   if(frac<0.25) return whole;
@@ -1020,6 +1044,10 @@ window.viewEssays=function(gi, writeIdx){
       '</div>';
       // essay
       out+=x.essay?'<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:8px 0 6px">Essay</h4><div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;background:var(--aw-surface-2);padding:12px;border-radius:8px;margin-bottom:10px">'+AW.esc(x.essay)+'</div>':'<p style="color:var(--aw-ink-3)">No essay text.</p>';
+      // vocabulary profile (CEFR, computed here from the essay text — no extra storage)
+      if(x.essay && window.AW && AW.analyseVocabulary){
+        out+=renderTeacherVocab(AW.analyseVocabulary(x.essay));
+      }
       // feedback detail
       if(fb){
         out+='<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:12px 0 6px">AI Feedback</h4>';
