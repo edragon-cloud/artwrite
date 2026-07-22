@@ -7,6 +7,9 @@
 <link rel="stylesheet" href="aw-theme.css">
 <style>
   .aw-mode-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin-bottom:28px}
+  .aw-mode-card.aw-mode-locked{cursor:not-allowed;opacity:.55;filter:grayscale(.5)}
+  .aw-mode-card.aw-mode-locked:hover{transform:none;box-shadow:var(--aw-shadow-sm)}
+  .aw-lock-badge{font-size:.68rem;font-weight:700;background:var(--aw-surface-2);color:var(--aw-ink-3);padding:2px 8px;border-radius:10px;vertical-align:middle}
   .aw-mode-card{background:var(--aw-surface);border:1px solid var(--aw-border-2);border-radius:var(--aw-r-lg);padding:24px;cursor:pointer;transition:transform .14s,box-shadow .16s,border-color .16s;box-shadow:var(--aw-shadow-sm);position:relative;overflow:hidden}
   .aw-mode-card:hover{transform:translateY(-4px);box-shadow:var(--aw-shadow-lg);border-color:var(--aw-primary)}
   .aw-mode-ic{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-size:1.5rem;margin-bottom:14px}
@@ -67,6 +70,10 @@ if (typeof AW === 'undefined') {
 var sess = AW.session.require('student');
 if (!sess) throw 'redirect';
 
+/* Is this student in an AI (experimental) class or a control class?
+   Resolved before the first render so Free Writing never flashes unlocked. */
+var AW_AI_ON = true;
+
 var nav = [
   { id:'modes',   label:'Practice Modes', icon:'modes', active:true },
   { id:'board',   label:'Interactive Board', icon:'modes', href:'board.html' },
@@ -90,7 +97,10 @@ function showModes(){
   content.innerHTML =
     '<div id="todaysWord"></div>' +
     '<div class="aw-mode-grid">' +
-      modeCard('free','✍️','Free Writing','Choose any topic and get instant AI feedback. Practice at your own pace.','aw-mode-free') +
+      modeCard('free','✍️','Free Writing',
+        AW_AI_ON ? 'Choose any topic and get instant AI feedback. Practice at your own pace.'
+                 : 'Không khả dụng cho lớp của bạn.',
+        'aw-mode-free' + (AW_AI_ON ? '' : ' aw-mode-locked')) +
       modeCard('inclass','⏱️','In-class Practice','Timed writing assigned by your teacher, with live guidance.','aw-mode-inclass') +
       modeCard('homework','📝','Homework','Complete assigned essays with the required number of revisions.','aw-mode-hw') +
     '</div>' +
@@ -101,6 +111,10 @@ function showModes(){
   AW.els('.aw-mode-card').forEach(function(c){
     c.onclick=function(){
       var m=c.dataset.mode;
+      if(m==='free' && !AW_AI_ON){
+        AW.toast('Mục Free Writing không khả dụng cho lớp của bạn. Hãy làm bài trong mục Homework hoặc In-class Practice.','err',5000);
+        return;
+      }
       if(m==='free'){ location.href='write.html?mode=free&topic='+encodeURIComponent('Free Writing'); }
       else { loadAssignments(m); }
     };
@@ -109,8 +123,9 @@ function showModes(){
 }
 
 function modeCard(mode,ic,title,desc,cls){
+  var locked = cls.indexOf('aw-mode-locked') !== -1;
   return '<div class="aw-mode-card '+cls+'" data-mode="'+mode+'">' +
-    '<div class="aw-mode-ic">'+ic+'</div><h3>'+title+'</h3><p>'+desc+'</p></div>';
+    '<div class="aw-mode-ic">'+ic+'</div><h3>'+title+(locked?' <span class="aw-lock-badge">🔒 Khoá</span>':'')+'</h3><p>'+desc+'</p></div>';
 }
 
 function loadHistory(){
@@ -449,7 +464,8 @@ function qaCard(q){
 function showSettings(){
   document.getElementById('awPageTitle').textContent='Settings';
   var hasKey=!!AW.geminiKey.get();
-  content.innerHTML=
+  // Control classes have no AI features, so the key fields would only confuse
+  var keyCards = !AW_AI_ON ? '' : (
     '<div class="aw-card" style="padding:24px;max-width:520px;margin-bottom:16px">' +
       '<h3 style="margin:0 0 6px">Gemini API Key</h3>' +
       '<p style="color:var(--aw-ink-2);font-size:.9rem;margin:0 0 14px">Stored on your device, never sent to the server. Needed for AI grading.</p>' +
@@ -465,7 +481,9 @@ function showSettings(){
       '<p style="margin:0 0 12px"><a href="https://console.groq.com/keys" target="_blank" rel="noopener" style="font-size:.8rem;color:var(--aw-primary);font-weight:600;text-decoration:none">→ Get a free Groq key</a></p>' +
       '<button class="aw-btn aw-btn-primary" id="gqBtn">Save key</button>' +
       (AW.groqKey.get()?' <button class="aw-btn aw-btn-ghost" id="gqClear">Remove</button>':'') +
-    '</div>' +
+    '</div>');
+  content.innerHTML=
+    keyCards +
     '<div class="aw-card" style="padding:24px;max-width:520px">' +
       '<h3 style="margin:0 0 14px">Change Password</h3>' +
       '<div class="aw-field"><label class="aw-label">Current password</label><input class="aw-input" id="pwOld" type="password"></div>' +
@@ -473,13 +491,15 @@ function showSettings(){
       '<div class="aw-field"><label class="aw-label">Confirm new password</label><input class="aw-input" id="pwNew2" type="password"></div>' +
       '<button class="aw-btn aw-btn-primary" id="pwBtn">Update password</button>' +
     '</div>';
-  document.getElementById('keyBtn').onclick=function(){
+  var keyBtn=document.getElementById('keyBtn');
+  if(keyBtn) keyBtn.onclick=function(){
     var k=document.getElementById('keyIn').value.trim();
     if(k){AW.geminiKey.set(k);AW.toast('API key saved','ok');showSettings();}
   };
   var clr=document.getElementById('keyClear');
   if(clr)clr.onclick=function(){AW.geminiKey.set('');AW.toast('Key removed','ok');showSettings();};
-  document.getElementById('gqBtn').onclick=function(){
+  var gqBtn=document.getElementById('gqBtn');
+  if(gqBtn) gqBtn.onclick=function(){
     var k=document.getElementById('gqIn').value.trim();
     if(k){AW.groqKey.set(k);AW.toast('Groq key saved','ok');showSettings();}
   };
@@ -507,7 +527,10 @@ function routeFromHash(){
   else { showModes(); AW.setActiveNav('modes'); }   // '' or 'modes'
 }
 window.addEventListener('hashchange', routeFromHash);
-routeFromHash();
+AW.loadClassAI(sess.class, function(on){
+  AW_AI_ON = on;
+  routeFromHash();
+});
 </script>
 </body>
 </html>

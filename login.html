@@ -17,8 +17,9 @@
 
     <form id="form" autocomplete="on">
       <div class="aw-field">
-        <label class="aw-label">Student ID</label>
-        <input class="aw-input" id="idInput" placeholder="e.g. 1234567" autocomplete="username">
+        <label class="aw-label">Student ID hoặc Email</label>
+        <input class="aw-input" id="idInput" placeholder="1234567 hoặc ban@example.com" autocomplete="username">
+        <p style="font-size:.76rem;color:var(--aw-ink-3);margin:6px 0 0">Bạn có thể đăng nhập bằng mã số sinh viên hoặc email đã đăng ký.</p>
       </div>
       <div class="aw-field">
         <div style="display:flex;justify-content:space-between;align-items:center">
@@ -108,6 +109,7 @@ document.getElementById('form').onsubmit=function(e){
   e.preventDefault();
   var id=document.getElementById('idInput').value.trim(), pass=document.getElementById('pw').value;
   if(!id||!pass){AW.toast('Nhập đầy đủ thông tin.','err');return;}
+  // the backend accepts either form in this field
   submitBtn.disabled=true; var o=submitBtn.textContent; submitBtn.innerHTML='<span class="aw-spin"></span>';
   AW.api('auth.studentLogin',{studentId:id,password:pass}).then(function(res){
     if(res&&res.success){

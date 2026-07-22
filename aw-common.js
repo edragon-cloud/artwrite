@@ -304,5 +304,38 @@
     localStorage.setItem(LK, String(parseInt(localStorage.getItem(LK) || '0', 10) + 1));
   };
 
+  /*──────── Class mode: Experimental (AI on) vs Control (AI off) ────────
+     The teacher flips this per class. Students in a control class keep every
+     human feature but see no AI grading or AI tutor, so the two research
+     groups differ only in the thing being studied.
+     Cached briefly so navigating between pages doesn't re-query each time. */
+  var AI_TTL = 120000; // 2 minutes
+  /* Synchronous read of the cached flag. Returns true/false, or null when we
+     have never looked it up on this device. Lets a page render immediately
+     with the right controls instead of flashing the wrong ones. */
+  AW.classAICached = function (classId) {
+    if (!classId) return null;
+    try {
+      var hit = JSON.parse(sessionStorage.getItem('aw_classai_' + classId) || 'null');
+      if (hit && (Date.now() - hit.t) < AI_TTL) return hit.on !== false;
+    } catch (e) {}
+    return null;
+  };
+  AW.loadClassAI = function (classId, cb) {
+    if (!classId) { cb(true); return; }
+    var key = 'aw_classai_' + classId;
+    try {
+      var hit = JSON.parse(sessionStorage.getItem(key) || 'null');
+      if (hit && (Date.now() - hit.t) < AI_TTL) { cb(hit.on !== false); return; }
+    } catch (e) {}
+    AW.api('class.get', { classId: classId }).then(function (res) {
+      // default to ON if the class can't be read, so a network hiccup never
+      // silently downgrades an experimental class
+      var on = !(res && res.data && res.data.aiEnabled === false);
+      try { sessionStorage.setItem(key, JSON.stringify({ on: on, t: Date.now() })); } catch (e) {}
+      cb(on);
+    }).catch(function () { cb(true); });
+  };
+
   global.AW = AW;
 })(window);

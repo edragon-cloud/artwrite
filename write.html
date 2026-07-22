@@ -45,18 +45,22 @@
   .aw-bar-fill{height:100%;background:linear-gradient(90deg,var(--aw-primary),#0A93BD);border-radius:4px;width:0;transition:width .5s ease}
   .aw-fb-block{margin-top:14px;padding-top:14px;border-top:1px solid var(--aw-border-2)}
   .aw-fb-block h4{margin:0 0 8px;font-size:.82rem;color:var(--aw-primary);text-transform:uppercase;letter-spacing:.04em}
-  .aw-voc-stack{display:flex;height:12px;border-radius:6px;overflow:hidden;margin-bottom:14px;background:var(--aw-surface-2)}
+  .aw-voc-stack{display:flex;height:14px;border-radius:7px;overflow:hidden;margin-bottom:16px;background:var(--aw-surface-2)}
   .aw-voc-stack>div{transition:width .5s ease}
-  .aw-voc-chart{display:flex;gap:6px;align-items:flex-end;height:96px;margin-bottom:12px}
-  .aw-voc-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
-  .aw-voc-colwrap{flex:1;width:100%;display:flex;align-items:flex-end}
-  .aw-voc-colbar{width:100%;border-radius:5px 5px 0 0;min-height:2px;transition:height .6s ease}
-  .aw-voc-lv{font-size:.72rem;font-weight:700}
-  .aw-voc-pct{font-size:.66rem;color:var(--aw-ink-3)}
-  .aw-voc-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
-  .aw-voc-kpi{background:var(--aw-surface-2);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column}
+  .aw-voc-rows{margin-bottom:14px}
+  .aw-voc-row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+  .aw-voc-name{width:112px;flex:0 0 auto;display:flex;flex-direction:column;line-height:1.25}
+  .aw-voc-name b{font-size:.84rem}
+  .aw-voc-name span{font-size:.68rem;color:var(--aw-ink-3)}
+  .aw-voc-track{flex:1;height:14px;background:var(--aw-surface-2);border-radius:7px;overflow:hidden}
+  .aw-voc-fill{height:100%;width:0;border-radius:7px;min-width:3px;transition:width .6s ease}
+  .aw-voc-val{width:46px;flex:0 0 auto;text-align:right;font-size:.8rem;font-weight:700}
+  .aw-voc-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .aw-voc-kpi{background:var(--aw-surface-2);border-radius:10px;padding:9px 11px;display:flex;flex-direction:column}
   .aw-voc-kpi b{font-size:1.15rem;font-family:var(--aw-font-display)}
   .aw-voc-kpi span{font-size:.7rem;color:var(--aw-ink-3)}
+  .aw-voc-note{margin-top:12px;font-size:.74rem;line-height:1.55}
+  .aw-voc-note p{margin:0 0 6px}
   .aw-fb-item{font-size:.86rem;line-height:1.5;color:var(--aw-ink-2);margin-bottom:8px;padding-left:10px;border-left:2px solid var(--aw-border)}
   .aw-fb-item b{color:var(--aw-ink)}
   .err-mark{color:var(--aw-danger);text-decoration:line-through}
@@ -176,8 +180,14 @@ if (hasRealTopic) {
   });
 }
 
+/* Experimental class (AI on) vs control class (AI off). Read the cached value
+   synchronously so the correct buttons render on the first paint; the async
+   check below corrects it if this device has never looked the class up. */
+var AW_AI_ON = AW.classAICached(sess.class);
+if (AW_AI_ON === null) AW_AI_ON = true;
+
 content.innerHTML =
-  (AW.geminiKey.get() ? '' :
+  ((!AW_AI_ON || AW.geminiKey.get()) ? '' :
     '<div class="aw-keybar"><span>🔑 Enter your Gemini API key (stored on your device) to grade essays:</span>' +
     '<input id="keyInput" type="password" placeholder="AIza…"><button class="aw-btn aw-btn-accent" id="keySave" style="padding:6px 14px">Save</button>' +
     '<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" class="aw-key-link">→ Get a free key</a></div>') +
@@ -218,16 +228,19 @@ content.innerHTML =
       '</div>' +
       '<div style="display:flex;gap:8px">' +
         '<button class="aw-btn aw-btn-ghost" id="pauseBtn" style="flex:0 0 auto;padding:12px 18px" title="Save your draft and continue later">⏸ Pause &amp; Save</button>' +
-        '<button class="aw-btn aw-btn-primary" id="gradeBtn" style="flex:1">Get AI Feedback</button>' +
+        '<button class="aw-btn aw-btn-primary" id="gradeBtn" style="flex:1">'+(AW_AI_ON?'Get AI Feedback':'Nộp bài')+'</button>' +
       '</div>' +
     '</div>' +
     '<div class="aw-side-panel" id="side">' +
-      '<h3>'+(MODE==='free'?'AI Feedback':'Revision History')+'</h3>' +
-      '<div id="sideBody"><p style="color:var(--aw-ink-3);font-size:.88rem">When finished, click <b>Get AI Feedback</b> to get your score and feedback.</p></div>' +
+      '<h3>'+(!AW_AI_ON?'Bài nộp':(MODE==='free'?'AI Feedback':'Revision History'))+'</h3>' +
+      '<div id="sideBody"><p style="color:var(--aw-ink-3);font-size:.88rem">'+
+        (AW_AI_ON ? 'When finished, click <b>Get AI Feedback</b> to get your score and feedback.'
+                  : 'Viết xong thì bấm <b>Nộp bài</b>. Giáo viên sẽ chấm và trả kết quả trong <b>My Progress</b>.')+
+      '</p></div>' +
       '<div id="submitStatus" style="margin-top:14px;text-align:center;display:none"><span style="color:var(--aw-writing);font-weight:600">✓ Submitted</span></div>' +
     '</div>' +
   '</div>' +
-  (MODE==='free' ?
+  ((MODE==='free' && AW_AI_ON) ?
     '<button class="aw-board-fab" id="boardFab" onclick="openBoardView()" style="bottom:78px">📋 Board</button>' +
     '<button class="aw-tutor-fab" id="tutorFab" title="Ask the AI writing tutor">💬 AI Tutor</button>' +
     '<div class="aw-tutor-panel" id="tutorPanel">' +
@@ -257,7 +270,7 @@ content.innerHTML =
     '</div>');
 
 /*──────── key bar ────────*/
-if (!AW.geminiKey.get()) {
+if (AW_AI_ON && !AW.geminiKey.get()) {
   document.getElementById('keySave').onclick = function(){
     var k = document.getElementById('keyInput').value.trim();
     if (k) { AW.geminiKey.set(k); AW.toast('Đã lưu API key','ok'); document.querySelector('.aw-keybar').style.display='none'; }
@@ -434,11 +447,55 @@ editor.addEventListener('input', function(){
 });
 sendHeartbeat('Writing'); // initial ping
 
+/*──────── plain submission (control classes, no AI) ────────
+   Same storage path as a graded attempt, minus every AI field, so the teacher
+   marks it by hand in Results and the export keeps AI and teacher scores apart. */
+function submitWithoutAI(btn, text){
+  if(!confirm('Nộp bài này cho giáo viên?\n\nBạn vẫn có thể viết lại và nộp thêm (tối đa 3 lần). Giáo viên sẽ chấm BẢN NỘP MỚI NHẤT.')) return;
+  var orig=btn.textContent; btn.disabled=true;
+  btn.innerHTML='<span class="aw-spin"></span> Đang nộp…';
+  AW.api('write.saveResult', {
+    studentId:sess.studentId, name:sess.name, mode:MODE, topic:TOPIC, topicId:TOPIC_ID,
+    startTime:startTime.toISOString(), finishTime:new Date().toISOString(),
+    duration:Math.round((Date.now()-startTime)/1000),
+    tr:'', cc:'', lr:'', gra:'', aiGrading:'', teacherGrading:'',
+    essay:text, class:(sess.class||''), feedback:''
+  }).then(function(res){
+    if (res && res.locked) { AW.toast(res.error||'Bài này đã khoá.','err',4000); lockEditor(res.error||'Bài này đã khoá.'); return; }
+    if (!res || !res.success) { AW.toast((res&&res.error)||'Nộp bài thất bại','err'); btn.disabled=false; btn.textContent=orig; return; }
+    attempt = (res.data.attempt||attempt)+1;
+    var used = attempt-1;
+    if(window.clearDraft) window.clearDraft();
+    AW.toast('Đã nộp bài (lần '+used+'/3)','ok');
+    document.getElementById('sideBody').innerHTML =
+      '<div style="text-align:center;padding:18px 6px">' +
+        '<div style="font-size:2.2rem;line-height:1">✅</div>' +
+        '<h4 style="margin:8px 0 6px;font-family:var(--aw-font-display)">Đã nộp — chờ giáo viên chấm</h4>' +
+        '<p style="color:var(--aw-ink-2);font-size:.88rem;margin:0 0 10px">Điểm và nhận xét sẽ hiện trong <b>My Progress</b> sau khi giáo viên chấm xong.</p>' +
+        '<p style="color:var(--aw-ink-3);font-size:.8rem;margin:0">Lần nộp: <b>'+used+'/3</b>. Giáo viên chấm bản nộp mới nhất.</p>' +
+      '</div>';
+    editor.setAttribute('contenteditable','false');
+    editor.style.background='var(--aw-surface-2)';
+    if(used>=3){
+      lockEditor('Bạn đã dùng hết 3 lần nộp cho bài này.');
+    } else {
+      btn.textContent='Đã nộp lần '+used+'/3 — viết lại từ My Progress';
+      btn.disabled=true;
+    }
+    if(MODE!=='free') sendHeartbeat('Submitted');
+  }).catch(function(e){
+    AW.toast(e.message||'Nộp bài thất bại','err');
+    btn.disabled=false; btn.textContent=orig;
+  });
+}
+
 /*──────── grading ────────*/
 var lastResult=null;
 document.getElementById('gradeBtn').onclick = function(){
   var text = editor.innerText.trim();
-  if (AW.wordCount(text) < 20) { AW.toast('Write at least 20 words before grading.','err'); return; }
+  if (AW.wordCount(text) < 20) { AW.toast('Write at least 20 words before submitting.','err'); return; }
+  // Control class: plain submission, graded by the teacher by hand
+  if (!AW_AI_ON) { submitWithoutAI(this, text); return; }
   var key = AW.geminiKey.get();
   if (!key) { AW.toast('Please enter your Gemini API key first.','err'); return; }
 
@@ -638,15 +695,16 @@ function renderFeedback(r){
       return '<div class="aw-fb-item"><span class="err-mark">'+AW.esc(e.original)+'</span> → <span class="fix-mark">'+AW.esc(e.better)+'</span>'+(e.explanation_vi?'<br><span style="font-size:.8rem;color:var(--aw-ink-3)">'+AW.esc(e.explanation_vi)+'</span>':'')+'</div>';
     }).join('')+'</div>';
   }
-  // Vocabulary Profile (CEFR) — measured client-side, free of tokens
-  if (window.AW && AW.analyseVocabulary && lastVocabProfile) {
+  // Vocabulary Profile (CEFR) — students only see it in an AI class; the
+  // teacher can still view it for every essay from the Results screen.
+  if (AW_AI_ON && window.AW && AW.analyseVocabulary && lastVocabProfile) {
     html += renderVocabProfile(lastVocabProfile);
   }
   document.getElementById('sideBody').innerHTML=html;
   setTimeout(function(){
     AW.els('.aw-bar-fill').forEach(function(b){b.style.width=b.dataset.w;});
     // grow vocab bars from zero for a small reveal
-    AW.els('.aw-voc-colbar').forEach(function(b){var h=b.dataset.h;b.style.height='0%';requestAnimationFrame(function(){b.style.height=h;});});
+    AW.els('.aw-voc-fill').forEach(function(b){ b.style.width=b.dataset.w; });
   },50);
 }
 function crit(name,val){
@@ -657,38 +715,54 @@ function crit(name,val){
 
 /*──────── Vocabulary Profile diagram (CEFR, client-side) ────────*/
 var lastVocabProfile = null;
-var CEFR_COLORS = { A1:'#9AA6B2', A2:'#6FB1E0', B1:'#3E8FD0', B2:'#0A6EBD', C1:'#7A5AF0', C2:'#4C36B8' };
+/* Difficulty ramp: green (easy) → blue → yellow → orange → red (hardest),
+   so the colour alone tells the student how demanding the vocabulary is. */
+var CEFR_BANDS = [
+  { key:'A1A2', label:'A1–A2', sub:'Cơ bản',          color:'#2E9367' },
+  { key:'B1',   label:'B1',    sub:'Trung cấp',       color:'#0A6EBD' },
+  { key:'B2',   label:'B2',    sub:'Trên trung cấp',  color:'#E0A32E' },
+  { key:'C1',   label:'C1',    sub:'Nâng cao',        color:'#E8730C' },
+  { key:'C2',   label:'C2',    sub:'Thành thạo',      color:'#D93025' }
+];
+function vocabBandPct(p){
+  return {
+    A1A2: Math.round((p.pctByLevel.A1 + p.pctByLevel.A2) * 10) / 10,
+    B1: p.pctByLevel.B1, B2: p.pctByLevel.B2,
+    C1: p.pctByLevel.C1, C2: p.pctByLevel.C2
+  };
+}
 function renderVocabProfile(p){
-  var levels = ['A1','A2','B1','B2','C1','C2'];
-  // horizontal proportion bar
-  var segs = levels.map(function(lv){
-    var w = p.pctByLevel[lv];
+  var pct = vocabBandPct(p);
+  var segs = CEFR_BANDS.map(function(b){
+    var w = pct[b.key];
     if (w <= 0) return '';
-    return '<div title="'+lv+': '+w+'%" style="width:'+w+'%;background:'+CEFR_COLORS[lv]+'"></div>';
+    return '<div title="'+b.label+': '+w+'%" style="width:'+w+'%;background:'+b.color+'"></div>';
   }).join('');
-  // vertical bars with labels
-  var maxPct = Math.max.apply(null, levels.map(function(lv){return p.pctByLevel[lv];})) || 1;
-  var bars = levels.map(function(lv){
-    var w = p.pctByLevel[lv];
-    var h = Math.round(w / maxPct * 100);
-    return '<div class="aw-voc-col">'+
-      '<div class="aw-voc-colwrap"><div class="aw-voc-colbar" style="height:'+h+'%;background:'+CEFR_COLORS[lv]+'" data-h="'+h+'%"></div></div>'+
-      '<div class="aw-voc-lv" style="color:'+CEFR_COLORS[lv]+'">'+lv+'</div>'+
-      '<div class="aw-voc-pct">'+w+'%</div></div>';
+  // horizontal rows — width is the real share of the essay, so it reads honestly
+  var rows = CEFR_BANDS.map(function(b){
+    var w = pct[b.key];
+    return '<div class="aw-voc-row">'+
+      '<div class="aw-voc-name"><b style="color:'+b.color+'">'+b.label+'</b><span>'+b.sub+'</span></div>'+
+      '<div class="aw-voc-track"><div class="aw-voc-fill" data-w="'+w+'%" style="background:'+b.color+'"></div></div>'+
+      '<div class="aw-voc-val">'+w+'%</div></div>';
   }).join('');
 
   return '<div class="aw-fb-block aw-voc">'+
     '<h4>📊 Vocabulary Profile</h4>'+
-    '<p style="font-size:.78rem;color:var(--aw-ink-3);margin:0 0 10px">Từ vựng của bài được đối chiếu với thang CEFR (A1 dễ → C2 khó). Tính ngay trên máy, không tốn token.</p>'+
+    '<p style="font-size:.78rem;color:var(--aw-ink-3);margin:0 0 12px">Phân bố cấp độ từ vựng trong bài viết của bạn.</p>'+
     '<div class="aw-voc-stack">'+segs+'</div>'+
-    '<div class="aw-voc-chart">'+bars+'</div>'+
+    '<div class="aw-voc-rows">'+rows+'</div>'+
     '<div class="aw-voc-kpis">'+
-      '<div class="aw-voc-kpi"><b style="color:#4C36B8">'+p.pctAdvanced+'%</b><span>C1+ (nâng cao)</span></div>'+
-      '<div class="aw-voc-kpi"><b style="color:#0A6EBD">'+p.pctUpperMid+'%</b><span>B2 trở lên</span></div>'+
+      '<div class="aw-voc-kpi"><b style="color:#E8730C">'+p.pctAdvanced+'%</b><span>C1 trở lên</span></div>'+
+      '<div class="aw-voc-kpi"><b style="color:#E0A32E">'+p.pctUpperMid+'%</b><span>B2 trở lên</span></div>'+
       '<div class="aw-voc-kpi"><b>'+p.diversity+'%</b><span>Độ đa dạng</span></div>'+
-      '<div class="aw-voc-kpi"><b>'+p.uniqueLemmas+'</b><span>Từ gốc khác nhau</span></div>'+
+      '<div class="aw-voc-kpi"><b>'+p.uniqueLemmas+'</b><span>Số từ khác nhau</span></div>'+
     '</div>'+
-    '<p style="font-size:.72rem;color:var(--aw-ink-3);margin:8px 0 0">'+p.listed+'/'+p.totalWords+' từ có trong từ điển CEFR. Từ ngoài danh sách (tên riêng, từ hiếm, sai chính tả) không được xếp cấp.</p>'+
+    '<div class="aw-voc-note">'+
+      '<p><b>Độ đa dạng</b> — bạn dùng bao nhiêu từ khác nhau trên tổng số từ. Càng cao nghĩa là càng ít lặp từ; càng thấp nghĩa là một số từ được dùng đi dùng lại nhiều.</p>'+
+      '<p><b>Số từ khác nhau</b> — đếm theo từ gốc, nên <i>facilitate / facilitates / facilitated</i> chỉ tính là 1 từ.</p>'+
+      '<p style="color:var(--aw-ink-3)">'+p.listed+'/'+p.totalWords+' từ nằm trong thang CEFR. Tên riêng, từ chuyên ngành hiếm và từ sai chính tả không được xếp cấp.</p>'+
+    '</div>'+
   '</div>';
 }
 
@@ -854,6 +928,29 @@ if (MODE === 'inclass' || MODE === 'homework') {
     setTimeout(poll, 2000);
   })();
 }
+
+/*──────── confirm the class mode against the server ────────
+   The first paint uses the cached flag. This re-checks it, so a student who
+   opens write.html directly (or after the teacher flips the switch) still gets
+   the right screen instead of the one their device happened to remember. */
+AW.loadClassAI(sess.class, function(on){
+  if (on === AW_AI_ON) return;      // nothing changed
+  AW_AI_ON = on;
+  if (!on) {
+    // downgrade to control mode without a reload
+    var kb = document.querySelector('.aw-keybar'); if (kb) kb.remove();
+    var tf = document.getElementById('tutorFab'); if (tf) tf.remove();
+    var tp = document.getElementById('tutorPanel'); if (tp) tp.remove();
+    var gb = document.getElementById('gradeBtn');
+    if (gb && !gb.disabled) gb.textContent = 'Nộp bài';
+    if (MODE === 'free') {
+      lockEditor('Free Writing không khả dụng cho lớp của bạn.');
+      AW.toast('Mục này không khả dụng cho lớp của bạn.','err',5000);
+    }
+  } else {
+    location.reload();              // upgrade needs the AI controls back
+  }
+});
 </script>
 </body>
 </html>

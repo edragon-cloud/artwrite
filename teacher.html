@@ -11,6 +11,13 @@
   @media(max-width:900px){.aw-live-wrap{grid-template-columns:1fr}}
   .aw-live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
   @keyframes awSlideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+  .aw-ai-toggle{display:inline-flex;align-items:center;gap:7px;border:1px solid #E0A32E;background:#FFF8EC;color:#8A6410;
+    border-radius:18px;padding:6px 14px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--aw-font-body)}
+  .aw-ai-toggle.on{border-color:#2E9367;background:#EAF7F0;color:#1E7E42}
+  .aw-ai-toggle .aw-ai-dot{width:8px;height:8px;border-radius:50%;background:#E0A32E}
+  .aw-ai-toggle.on .aw-ai-dot{background:#2E9367}
+  .aw-ai-toggle .aw-ai-sub{font-weight:500;opacity:.8;font-size:.72rem;padding-left:6px;border-left:1px solid currentColor}
+  .aw-ai-toggle:hover{filter:brightness(.97)}
   .aw-notifs{position:fixed;bottom:20px;right:20px;z-index:900;display:flex;flex-direction:column;gap:10px;max-width:340px}
   .aw-notif{background:var(--aw-primary-dk,#0A4A7A);color:#fff;border-radius:12px;padding:13px 14px;box-shadow:0 10px 30px rgba(0,0,0,.28);display:flex;gap:10px;align-items:flex-start;font-size:.88rem;line-height:1.4;cursor:pointer;animation:awNotifIn .25s ease}
   .aw-notif.hand{background:linear-gradient(135deg,#E0A32E,#C8891A)}
@@ -279,6 +286,7 @@ function injectClassBar(){
     '<select class="aw-select" id="classSel"'+(myClasses.length?'':' disabled')+'>'+
       (myClasses.length?opts:'<option>No classes yet</option>')+'</select>'+
     (curClassObj()?'<span class="aw-tag aw-tag-type">'+AW.esc(curClassObj().year||'')+(curClassObj().semester?' · HK'+AW.esc(curClassObj().semester):'')+'</span>':'')+
+    aiToggleHtml()+
     '<button class="aw-btn aw-btn-primary" style="margin-left:auto;padding:8px 16px" id="newClassBtn">+ Create New Class</button>';
   var main=document.querySelector('.aw-main');
   var topbar=main.querySelector('.aw-topbar');
@@ -286,6 +294,45 @@ function injectClassBar(){
   var sel=document.getElementById('classSel');
   if(sel) sel.onchange=function(){ setCurClass(this.value); location.reload(); };
   document.getElementById('newClassBtn').onclick=showCreateClass;
+  wireAiToggle();
+}
+
+/*──────── Experimental vs Control class ────────
+  A control class keeps every human feature (Ask Teacher, Board, raise hand)
+  but hides the AI grader and AI tutor from students, so the only difference
+  between the two groups is the thing being researched. */
+function classAiEnabled(){
+  var c = curClassObj();
+  return !c || c.aiEnabled !== false;   // default ON for existing classes
+}
+function aiToggleHtml(){
+  if(!curClassObj()) return '';
+  var on = classAiEnabled();
+  return '<button class="aw-ai-toggle'+(on?' on':'')+'" id="aiToggleBtn" '+
+    'title="'+(on?'Lớp thực nghiệm — sinh viên có AI chấm và AI Tutor':'Lớp đối chứng — sinh viên KHÔNG có AI')+'">'+
+    '<span class="aw-ai-dot"></span>'+(on?'AI: Bật':'AI: Tắt')+
+    '<span class="aw-ai-sub">'+(on?'Thực nghiệm':'Đối chứng')+'</span></button>';
+}
+function wireAiToggle(){
+  var b=document.getElementById('aiToggleBtn'); if(!b) return;
+  b.onclick=function(){
+    var on=classAiEnabled(), c=curClassObj();
+    var msg = on
+      ? 'Tắt AI cho lớp "'+c.className+'"?\n\nSinh viên sẽ KHÔNG còn: chấm điểm AI, AI Tutor, Vocabulary Profile.\nVẫn giữ: Ask Teacher, Board, Raise hand, Library, Q&A.\n\nLớp này sẽ được ghi nhận là nhóm ĐỐI CHỨNG.'
+      : 'Bật lại AI cho lớp "'+c.className+'"?\n\nSinh viên sẽ dùng được đầy đủ tính năng AI.\nLớp này sẽ được ghi nhận là nhóm THỰC NGHIỆM.';
+    if(!confirm(msg)) return;
+    b.disabled=true;
+    AW.api('class.setAiEnabled',{classId:c.classId, enabled:!on}).then(function(res){
+      if(res&&res.success){
+        c.aiEnabled = !on;
+        AW.toast(!on?'Đã bật AI — lớp thực nghiệm':'Đã tắt AI — lớp đối chứng','ok');
+        injectClassBar();
+      } else {
+        AW.toast((res&&res.error)||'Không đổi được','err');
+        b.disabled=false;
+      }
+    });
+  };
 }
 
 /*═══════════ CLASSES ═══════════*/
@@ -392,27 +439,44 @@ function loadRoster(){
 /*═══════════ LIVE OBSERVATION ═══════════*/
 /* IELTS band rounding: .25–.74 → .5, otherwise to the nearest whole band.
    Shared by the Results table and the Live Observation scoring panel. */
-/* Compact CEFR vocabulary profile for the teacher essay modal. */
-var AW_CEFR_COLORS = { A1:'#9AA6B2', A2:'#6FB1E0', B1:'#3E8FD0', B2:'#0A6EBD', C1:'#7A5AF0', C2:'#4C36B8' };
+/* Compact CEFR vocabulary profile for the teacher essay modal.
+   Same difficulty ramp as the student view: green (easy) → red (hardest). */
+var AW_CEFR_BANDS = [
+  { key:'A1A2', label:'A1–A2', sub:'Cơ bản',         color:'#2E9367' },
+  { key:'B1',   label:'B1',    sub:'Trung cấp',      color:'#0A6EBD' },
+  { key:'B2',   label:'B2',    sub:'Trên trung cấp', color:'#E0A32E' },
+  { key:'C1',   label:'C1',    sub:'Nâng cao',       color:'#E8730C' },
+  { key:'C2',   label:'C2',    sub:'Thành thạo',     color:'#D93025' }
+];
 function renderTeacherVocab(p){
   if(!p || !p.totalWords) return '';
-  var levels=['A1','A2','B1','B2','C1','C2'];
-  var segs=levels.map(function(lv){
-    var w=p.pctByLevel[lv]; if(w<=0) return '';
-    return '<div title="'+lv+': '+w+'%" style="width:'+w+'%;background:'+AW_CEFR_COLORS[lv]+'"></div>';
+  var pct = {
+    A1A2: Math.round((p.pctByLevel.A1 + p.pctByLevel.A2) * 10) / 10,
+    B1: p.pctByLevel.B1, B2: p.pctByLevel.B2, C1: p.pctByLevel.C1, C2: p.pctByLevel.C2
+  };
+  var segs = AW_CEFR_BANDS.map(function(b){
+    var w = pct[b.key]; if(w<=0) return '';
+    return '<div title="'+b.label+': '+w+'%" style="width:'+w+'%;background:'+b.color+'"></div>';
   }).join('');
-  var legend=levels.map(function(lv){
-    return '<span style="font-size:.7rem;color:'+AW_CEFR_COLORS[lv]+';font-weight:700;margin-right:10px">'+lv+' '+p.pctByLevel[lv]+'%</span>';
+  var rows = AW_CEFR_BANDS.map(function(b){
+    var w = pct[b.key];
+    return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:7px">'+
+      '<div style="width:112px;flex:0 0 auto;line-height:1.25"><b style="font-size:.82rem;color:'+b.color+'">'+b.label+'</b>'+
+        '<div style="font-size:.68rem;color:var(--aw-ink-3)">'+b.sub+'</div></div>'+
+      '<div style="flex:1;height:13px;background:var(--aw-surface-2);border-radius:7px;overflow:hidden">'+
+        '<div style="height:100%;width:'+w+'%;min-width:3px;border-radius:7px;background:'+b.color+'"></div></div>'+
+      '<div style="width:46px;text-align:right;font-size:.8rem;font-weight:700">'+w+'%</div></div>';
   }).join('');
-  return '<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:12px 0 6px">📊 Vocabulary Profile (CEFR)</h4>'+
-    '<div style="display:flex;height:12px;border-radius:6px;overflow:hidden;margin-bottom:8px;background:var(--aw-surface-2)">'+segs+'</div>'+
-    '<div style="margin-bottom:8px">'+legend+'</div>'+
-    '<div style="display:flex;gap:14px;flex-wrap:wrap;font-size:.82rem;margin-bottom:10px">'+
-      '<span><b style="color:#4C36B8">'+p.pctAdvanced+'%</b> C1+ (nâng cao)</span>'+
-      '<span><b style="color:#0A6EBD">'+p.pctUpperMid+'%</b> B2+</span>'+
-      '<span><b>'+p.diversity+'%</b> đa dạng</span>'+
-      '<span><b>'+p.uniqueLemmas+'</b> từ gốc</span>'+
-    '</div>';
+  return '<h4 style="color:var(--aw-primary);text-transform:uppercase;font-size:.82rem;margin:14px 0 6px">📊 Vocabulary Profile (CEFR)</h4>'+
+    '<div style="display:flex;height:13px;border-radius:7px;overflow:hidden;margin-bottom:12px;background:var(--aw-surface-2)">'+segs+'</div>'+
+    rows+
+    '<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:.82rem;margin:10px 0 4px">'+
+      '<span><b style="color:#E8730C">'+p.pctAdvanced+'%</b> C1 trở lên</span>'+
+      '<span><b style="color:#E0A32E">'+p.pctUpperMid+'%</b> B2 trở lên</span>'+
+      '<span><b>'+p.diversity+'%</b> độ đa dạng</span>'+
+      '<span><b>'+p.uniqueLemmas+'</b> từ khác nhau</span>'+
+    '</div>'+
+    '<p style="font-size:.72rem;color:var(--aw-ink-3);margin:0 0 10px">Độ đa dạng = số từ khác nhau ÷ tổng số từ (đếm theo từ gốc). '+p.listed+'/'+p.totalWords+' từ nằm trong thang CEFR.</p>';
 }
 
 function awIeltsRound(avg){
