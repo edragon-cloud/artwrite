@@ -891,6 +891,31 @@ document.getElementById('saveFb').onclick=function(){
 // wants to see who has just handed something in, not who is alphabetically first.
 var resultsData=[], resultsSort={key:'latest',dir:-1};   // dir: 1 = ascending, -1 = descending
 
+/* Which submissions this teacher has already opened.
+   Stored per device and keyed by group, with the timestamp that was current
+   when it was viewed — so if the student submits AGAIN later, the newer
+   timestamp beats the stored one and the badge comes back. */
+var LS_SEEN='aw_seen_results';
+function getSeenMap(){ try{ return JSON.parse(localStorage.getItem(LS_SEEN))||{}; }catch(e){ return {}; } }
+function markResultSeen(gkey, ts){
+  if(!gkey||!ts) return;
+  var m=getSeenMap();
+  if(!m[gkey] || m[gkey]<ts){
+    m[gkey]=ts;
+    // keep the store from growing without bound on a long-lived device
+    var keys=Object.keys(m);
+    if(keys.length>800){
+      keys.sort(function(a,b){ return m[a]-m[b]; }).slice(0, keys.length-800)
+          .forEach(function(k){ delete m[k]; });
+    }
+    try{ localStorage.setItem(LS_SEEN, JSON.stringify(m)); }catch(e){}
+  }
+}
+function isResultUnseen(gkey, ts){
+  var m=getSeenMap();
+  return !m[gkey] || m[gkey] < ts;
+}
+
 /* Most recent submission in a group, as a timestamp number (0 when unknown). */
 function groupLastTs(g){
   var t=0;
@@ -1101,11 +1126,13 @@ function renderResults(){
     var topicCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:110px;max-width:140px"><b>'+AW.esc(g.topic||'')+'</b></td>';
     var promptPlain = g.prompt ? (AW.stripHtml?AW.stripHtml(g.prompt):g.prompt.replace(/<[^>]*>/g,' ')) : '';
     var promptCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:220px;max-width:300px;font-size:.82rem;color:var(--aw-ink-2)">'+AW.esc(promptPlain)+'</td>';
-    // flag anything handed in within the last 24h, so a fresh submission is
-    // visible even when the teacher has sorted the table some other way
+    // Flag anything handed in within the last 24h that this teacher has not
+    // opened yet. Both conditions matter: the time window stops the whole
+    // backlog lighting up, and the seen-check stops 20 badges staying on
+    // screen after the teacher has already worked through them.
     var _last=groupLastTs(g);
-    var newBadge=(_last && (Date.now()-_last) < 86400000)
-      ? ' <span class="res-new" title="Nộp trong 24 giờ qua">mới</span>' : '';
+    var newBadge=(_last && (Date.now()-_last) < 86400000 && isResultUnseen(gkey,_last))
+      ? ' <span class="res-new" title="Nộp trong 24 giờ qua — chưa xem">new</span>' : '';
     var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+newBadge+'</td>'+
       '<td>'+AW.esc(g.className||g.class||'')+'</td>'+topicCell+promptCell;
     picks.forEach(function(p,pi){
@@ -1181,16 +1208,29 @@ function renderResults(){
 // view essays + feedback. writeIdx: specific attempt index, or -1/undefined = all
 window.viewEssays=function(gkey, writeIdx){
   var g=findResult(gkey); if(!g){ AW.toast('Không tìm thấy bài viết này.','err'); return; }
+  // opening it counts as reading it — drop the badge straight away rather than
+  // waiting for the next full re-render
+  markResultSeen(gkey, groupLastTs(g));
+  AW.els('tr[data-key]').forEach(function(tr){
+    if(tr.dataset.key===gkey){ var b=tr.querySelector('.res-new'); if(b) b.remove(); }
+  });
   var w=g.writes||[];
   var showList = (writeIdx==null || writeIdx<0) ? w.map(function(x,i){return {x:x,i:i};})
                                                 : (w[writeIdx]?[{x:w[writeIdx],i:writeIdx}]:[]);
   function crit(name,val){var pct=val?Math.min(100,(parseFloat(val)/9)*100):0;
     return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:.85rem"><span>'+name+'</span><b>'+(val||'—')+'</b></div><div style="height:6px;background:#E5E9EE;border-radius:4px"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#0A6EBD,#0A93BD);border-radius:4px"></div></div></div>';}
-  var header='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'+
-    '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.25rem">'+AW.esc(g.name||g.studentId)+' — '+AW.esc(g.topic||'')+'</h2>'+
-    '<div><button class="aw-btn aw-btn-accent" style="padding:6px 14px;margin-right:6px" onclick="exportTeacherDoc(\''+gkey.replace(/'/g,"\\'")+'\')">📄 Save to Google Doc</button>'+
-    '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px;margin-right:6px" onclick="printTeacherFeedback()">⤓ Print/PDF</button>'+
-    '<button class="aw-btn aw-btn-ghost" style="padding:6px 14px" onclick="closeEssayModal()">Close</button></div></div>';
+  // The title can be long, so it gets the flexible space (and ellipsis) while
+  // the buttons stay fixed-width on one line — previously a long topic pushed
+  // Close onto its own row.
+  var header='<div style="display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px;flex-wrap:nowrap">'+
+    '<h2 style="margin:0;font-family:var(--aw-font-display);font-size:1.25rem;flex:1 1 auto;min-width:0;'+
+      'overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="'+AW.esc((g.name||g.studentId)+' — '+(g.topic||''))+'">'+
+      AW.esc(g.name||g.studentId)+' — '+AW.esc(g.topic||'')+'</h2>'+
+    '<div style="display:flex;gap:6px;flex:0 0 auto;white-space:nowrap">'+
+      '<button class="aw-btn aw-btn-accent" style="padding:6px 13px" onclick="exportTeacherDoc(\''+gkey.replace(/'/g,"\\'")+'\')">📄 Save to Doc</button>'+
+      '<button class="aw-btn aw-btn-ghost" style="padding:6px 13px" onclick="printTeacherFeedback()">⤓ PDF</button>'+
+      '<button class="aw-btn aw-btn-ghost" style="padding:6px 13px" onclick="closeEssayModal()">Close</button>'+
+    '</div></div>';
   var body;
   if(!showList.length){
     body='<div class="aw-empty" style="padding:40px 20px">'+AW.icon('results')+'<p>Student has not completed this attempt yet.</p></div>';
