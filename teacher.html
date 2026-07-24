@@ -15,6 +15,12 @@
   @media(max-width:900px){.aw-live-wrap{grid-template-columns:1fr}}
   .aw-live-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px}
   @keyframes awSlideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}
+  .res-sortable{cursor:pointer;user-select:none;white-space:nowrap}
+  .res-sortable:hover{filter:brightness(1.12)}
+  .res-sortable.on .res-caret{opacity:1}
+  .res-caret{opacity:.55;font-size:.7em}
+  .res-new{display:inline-block;background:var(--aw-writing);color:#fff;font-size:.6rem;font-weight:700;
+    text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:9px;vertical-align:middle;margin-left:5px}
   .aw-res-date{font-size:.66rem;color:var(--aw-ink-3);line-height:1.2;margin-top:1px;white-space:nowrap}
   .aw-ai-toggle{display:inline-flex;align-items:center;gap:7px;border:1px solid #E0A32E;background:#FFF8EC;color:#8A6410;
     border-radius:18px;padding:6px 14px;font-size:.8rem;font-weight:700;cursor:pointer;font-family:var(--aw-font-body)}
@@ -881,7 +887,42 @@ document.getElementById('saveFb').onclick=function(){
 };
 
 /*═══════════ RESULTS ═══════════*/
-var resultsData=[], resultsSort={key:'name',dir:1};
+// Newest submission first by default: a teacher opening Results almost always
+// wants to see who has just handed something in, not who is alphabetically first.
+var resultsData=[], resultsSort={key:'latest',dir:-1};   // dir: 1 = ascending, -1 = descending
+
+/* Most recent submission in a group, as a timestamp number (0 when unknown). */
+function groupLastTs(g){
+  var t=0;
+  (g.writes||[]).forEach(function(w){
+    var d=new Date(w.timestamp||w.finishTime||w.startTime);
+    if(!isNaN(d) && d.getTime()>t) t=d.getTime();
+  });
+  return t;
+}
+function resSortValue(g,k){
+  if(k==='latest')       return groupLastTs(g);
+  if(k==='bestResult')   return parseFloat(g.bestResult)||0;
+  if(k==='attemptCount') return (g.writes||[]).length;
+  if(k==='class')        return String(g.className||g.class||'').toLowerCase();
+  if(k==='topic')        return String(g.topic||'').toLowerCase();
+  return String(g[k]==null?'':g[k]).toLowerCase();
+}
+/* Dates and numbers read best highest-first; text reads best A→Z. */
+function resDefaultDir(k){
+  return (k==='latest'||k==='bestResult'||k==='attemptCount') ? -1 : 1;
+}
+function syncSortDirBtn(){
+  var b=document.getElementById('fSortDir'); if(!b) return;
+  b.textContent = resultsSort.dir===1 ? '↑' : '↓';
+  b.title = resultsSort.dir===1 ? 'Đang tăng dần — bấm để đảo' : 'Đang giảm dần — bấm để đảo';
+}
+function setResSort(k){
+  if(resultsSort.key===k) resultsSort.dir = -resultsSort.dir;  // same column → flip
+  else { resultsSort.key=k; resultsSort.dir=resDefaultDir(k); }
+  var sel=document.getElementById('fSort'); if(sel) sel.value=k;
+  renderResults();
+}
 /* Rows are filtered and sorted before rendering, so a row's position is NOT a
    stable identity — using it to look up resultsData opened (and saved to) the
    wrong student. Every row carries this key instead. */
@@ -903,11 +944,15 @@ function showResults(){
       '<select class="aw-select" id="fTopic"><option value="">All topics</option></select>'+
       '<div class="aw-search" style="flex:1;min-width:200px">'+AW.icon('search')+'<input id="resSearch" placeholder="Name / Student ID…"></div>'+
       '<select class="aw-select" id="fSort">'+
+        '<option value="latest">Sort: Ngày nộp</option>'+
         '<option value="name">Sort: Name</option>'+
         '<option value="studentId">Sort: Student ID</option>'+
+        '<option value="class">Sort: Class</option>'+
+        '<option value="topic">Sort: Title</option>'+
         '<option value="bestResult">Sort: Best band</option>'+
         '<option value="attemptCount">Sort: Attempts</option>'+
       '</select>'+
+      '<button class="aw-btn aw-btn-ghost" id="fSortDir" style="padding:8px 12px;font-weight:700" title="Đảo thứ tự tăng/giảm">↓</button>'+
       '<button class="aw-btn aw-btn-ghost" id="clearFilters" style="padding:8px 14px">Clear</button>'+
       '<button class="aw-btn aw-btn-accent" id="exportResults" style="padding:8px 14px">⤓ Export to Sheet</button>'+
       '<span id="resCount" style="color:var(--aw-ink-3);font-size:.85rem"></span>'+
@@ -919,7 +964,11 @@ function showResults(){
   document.getElementById('resSearch').oninput=function(){ renderResults(); };
   document.getElementById('fClass').onchange=function(){ renderResults(); };
   document.getElementById('fTopic').onchange=function(){ renderResults(); };
-  document.getElementById('fSort').onchange=function(){ resultsSort.key=this.value; renderResults(); };
+  var selSort=document.getElementById('fSort');
+  selSort.value=resultsSort.key;
+  selSort.onchange=function(){ resultsSort.key=this.value; resultsSort.dir=resDefaultDir(this.value); renderResults(); };
+  document.getElementById('fSortDir').onclick=function(){ resultsSort.dir=-resultsSort.dir; renderResults(); };
+  syncSortDirBtn();
   document.getElementById('clearFilters').onclick=function(){
     document.getElementById('resSearch').value='';
     document.getElementById('fClass').value='';
@@ -985,16 +1034,34 @@ function renderResults(){
     return true;
   });
   var cnt=document.getElementById('resCount'); if(cnt)cnt.textContent=rows.length+' results';
+  syncSortDirBtn();
   if(!rows.length){box.innerHTML='<div class="aw-empty">'+AW.icon('results')+'<p>No results in this mode yet.</p></div>';return;}
   rows.sort(function(a,b){
     var k=resultsSort.key;
-    if(k==='bestResult'||k==='attemptCount'){ return (parseFloat(b[k])||0)-(parseFloat(a[k])||0); }
-    var av=(a[k]||'').toString().toLowerCase(), bv=(b[k]||'').toString().toLowerCase();
-    return av<bv?-1:av>bv?1:0;
+    var av=resSortValue(a,k), bv=resSortValue(b,k);
+    // Vietnamese names must collate by locale, not codepoint — a raw < compare
+    // puts "Nguyen" before "Nguyễn" and scatters names with diacritics
+    var r = (typeof av==='string')
+      ? av.localeCompare(bv,'vi',{numeric:true,sensitivity:'base'})
+      : (av<bv ? -1 : av>bv ? 1 : 0);
+    if(r) return r*resultsSort.dir;
+    // stable tie-break so equal values never shuffle between renders
+    return String(a.name||'').localeCompare(String(b.name||''),'vi',{sensitivity:'base'});
   });
   var writeLabels=[['First Write','grp-1','hd-1',0],['Second Write','grp-2','hd-2',1],['Third Write','grp-3','hd-3',2],['★ Best Write','grp-best','hd-best','best']];
-  var top='<tr><th class="sticky" rowspan="2">Student ID</th>'+
-    '<th rowspan="2">Name</th><th rowspan="2">Class</th><th rowspan="2">Title</th><th rowspan="2">Prompt (đề bài)</th>';
+  // Clickable headers: click to sort, click again to reverse
+  function sortableTh(label, key, extraCls){
+    var on = resultsSort.key===key;
+    var caret = on ? (resultsSort.dir===1 ? ' ▲' : ' ▼') : '';
+    return '<th rowspan="2" class="res-sortable'+(on?' on':'')+(extraCls?' '+extraCls:'')+'" data-sortkey="'+key+'" '+
+           'title="Bấm để sắp xếp theo '+label+'">'+label+'<span class="res-caret">'+caret+'</span></th>';
+  }
+  var top='<tr>'+
+    sortableTh('Student ID','studentId','sticky')+
+    sortableTh('Name','name')+
+    sortableTh('Class','class')+
+    sortableTh('Title','topic')+
+    '<th rowspan="2">Prompt (đề bài)</th>';
   writeLabels.forEach(function(l){
     top+='<th colspan="4" class="'+l[2]+'">'+l[0]+'</th>';
   });
@@ -1034,7 +1101,12 @@ function renderResults(){
     var topicCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:110px;max-width:140px"><b>'+AW.esc(g.topic||'')+'</b></td>';
     var promptPlain = g.prompt ? (AW.stripHtml?AW.stripHtml(g.prompt):g.prompt.replace(/<[^>]*>/g,' ')) : '';
     var promptCell='<td style="text-align:left;white-space:normal;word-break:break-word;min-width:220px;max-width:300px;font-size:.82rem;color:var(--aw-ink-2)">'+AW.esc(promptPlain)+'</td>';
-    var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+'</td>'+
+    // flag anything handed in within the last 24h, so a fresh submission is
+    // visible even when the teacher has sorted the table some other way
+    var _last=groupLastTs(g);
+    var newBadge=(_last && (Date.now()-_last) < 86400000)
+      ? ' <span class="res-new" title="Nộp trong 24 giờ qua">mới</span>' : '';
+    var tds='<td class="sticky">'+AW.esc(g.studentId)+'</td><td>'+AW.esc(g.name||'')+newBadge+'</td>'+
       '<td>'+AW.esc(g.className||g.class||'')+'</td>'+topicCell+promptCell;
     picks.forEach(function(p,pi){
       // map pick index to actual write index (best uses bestI)
@@ -1054,6 +1126,10 @@ function renderResults(){
 
   box.innerHTML='<p style="font-size:.82rem;color:var(--aw-ink-3);margin:0 0 10px">💡 Click any <b>Result</b> score to view that attempt\'s full essay and feedback.</p>'+
     '<div class="aw-res-wrap" style="overflow-x:auto"><table class="aw-res-table"><thead>'+top+'</thead><tbody>'+body+'</tbody></table></div>';
+  // click a column header to sort by it
+  AW.els('.res-sortable').forEach(function(th){
+    th.onclick=function(){ setResSort(th.dataset.sortkey); };
+  });
   // click a Result score to view that attempt's essay + feedback
   AW.els('[data-open-key]').forEach(function(cell){
     cell.style.cursor='pointer';
